@@ -1,0 +1,24 @@
+
+{
+  "name": "ZaikaBox Super Admin",
+  "short_name": "ZaikaBox Admin",
+  "description": "ZaikaBox Super Admin Dashboard",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#10091e",
+  "theme_color": "#180d2e",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
