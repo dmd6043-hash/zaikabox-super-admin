@@ -238,7 +238,7 @@ import {initializeApp}
 from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
 
 import {
-  getFirestore,collection,getDocs
+  getFirestore,collection,getDocs,doc,writeBatch
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 import {
@@ -460,34 +460,70 @@ function renderOrders(){
     $("orderList").innerHTML="No orders found.";
     return;
   }
-
+  const statuses=["New","Accepted","Rejected","Preparing","Ready for Pickup","Out for Delivery","Picked Up","Delivered"];
   const sorted=[...orderData].sort((a,b)=>{
     const at=a.createdAt?.toMillis?.()||0;
     const bt=b.createdAt?.toMillis?.()||0;
     return bt-at;
   });
-
   $("orderList").innerHTML=sorted.map(o=>{
     const name=valueOf(o,["customerName","name","userName"])||"Customer";
     const total=valueOf(o,["total","totalAmount","grandTotal"]);
-    const date=o.createdAt?.toDate
-      ?o.createdAt.toDate().toLocaleString("en-IN")
-      :"Time unavailable";
-
-    return `
-      <div class="item">
-        <h3>Order #${safe(o.id.slice(-8))}</h3>
-        <span class="tag">${safe(o.status||"Unknown")}</span>
-        <p>Customer: ${safe(name)}</p>
-        <p>Restaurant: ${safe(o.restaurantName||o.restaurantId||"Not specified")}</p>
-        <p>Order type: ${safe(o.orderType||"Not specified")}</p>
-        <p>Amount: ${money(total)}</p>
-        <p>Delivery UID: ${safe(o.assignedTo||"Not assigned")}</p>
-        <p class="muted">${safe(date)}</p>
-      </div>
-    `;
+    const date=o.createdAt?.toDate?o.createdAt.toDate().toLocaleString("en-IN"):"Time unavailable";
+    const current=String(o.status||"New");
+    const options=[...new Set([...statuses,current])].map(s=>
+      "<option value=\""+safe(s)+"\" "+(s===current?"selected":"")+">"+safe(s)+"</option>"
+    ).join("");
+    return "<div class=\"item\">"+
+      "<h3>Order #"+safe(o.id.slice(-8))+"</h3>"+
+      "<span class=\"tag\">"+safe(current)+"</span>"+
+      "<p>Customer: "+safe(name)+"</p>"+
+      "<p>Restaurant: "+safe(o.restaurantName||o.restaurantId||"Not specified")+"</p>"+
+      "<p>Order type: "+safe(o.orderType||"Not specified")+"</p>"+
+      "<p>Amount: "+money(total)+"</p>"+
+      "<p>Delivery UID: "+safe(o.assignedTo||"Not assigned")+"</p>"+
+      "<p class=\"muted\">"+safe(date)+"</p>"+
+      "<label style=\"display:block;font-size:12px;color:#ffbd87;margin:8px 0\">Update order status</label>"+
+      "<select class=\"order-status-select\" data-order-status=\""+safe(o.id)+"\" style=\"width:100%;padding:12px;border-radius:10px;background:#100d0a;color:white;border:1px solid #49372a\">"+options+"</select>"+
+      "<button class=\"primary save-order-status\" data-save-order=\""+safe(o.id)+"\">SAVE STATUS</button>"+
+      "</div>";
   }).join("");
 }
+
+$("orderList").addEventListener("click",async event=>{
+  const button=event.target.closest("button[data-save-order]");
+  if(!button)return;
+  const orderId=button.dataset.saveOrder;
+  const select=$("orderList").querySelector("select[data-order-status=\""+orderId+"\"]");
+  const newStatus=select?.value;
+  const order=orderData.find(item=>item.id===orderId);
+  if(!order||!newStatus)return;
+  if(String(order.status||"New")===newStatus){
+    status("Order already has this status.");
+    return;
+  }
+  if(!confirm("Order #"+orderId.slice(-8)+" status \""+newStatus+"\" set karna hai?"))return;
+  button.disabled=true;
+  button.textContent="UPDATING...";
+  status("Updating order status...");
+  try{
+    const batch=writeBatch(db);
+    batch.update(doc(db,"orders",orderId),{status:newStatus});
+    if(order.trackingCode){
+      const code=String(order.trackingCode).toUpperCase().replace(/[\s-]/g,"");
+      batch.update(doc(db,"orderTracking",code),{status:newStatus});
+    }
+    await batch.commit();
+    status("SUCCESS: Order status updated to "+newStatus+".");
+  }catch(error){
+    console.error("ORDER STATUS UPDATE ERROR",error);
+    status("UPDATE ERROR: "+(error.code||"")+" "+error.message);
+    alert("Status update nahi hua: "+error.message);
+  }finally{
+    button.disabled=false;
+    button.textContent="SAVE STATUS";
+  }
+});
 
 document.querySelectorAll("[data-tab]").forEach(button=>{
   button.onclick=()=>{
