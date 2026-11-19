@@ -359,9 +359,9 @@ async function loadAll(){
 
     const combined=new Map();
 
-    [...accountUsers,...regularUsers].forEach(p=>{
+    [...regularUsers,...accountUsers].forEach(p=>{
       if(String(p.role||"").trim().toLowerCase()==="delivery"){
-        combined.set(p.id,p);
+        combined.set(p.id,{...(combined.get(p.id)||{}),...p});
       }
     });
 
