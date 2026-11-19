@@ -199,6 +199,7 @@ button:disabled{opacity:.5}
     <button data-tab="restaurants">Restaurants</button>
     <button data-tab="delivery">Delivery Partners</button>
     <button data-tab="orders">Orders</button>
+    <button data-tab="customers">Customers</button>
   </div>
 
   <section id="overviewTab" class="tab">
@@ -227,6 +228,16 @@ button:disabled{opacity:.5}
     <div class="card">
       <h2>All Orders</h2>
       <div id="orderList">Loading...</div>
+    </div>
+  </section>
+
+  <section id="customersTab" class="tab hidden">
+    <div class="card">
+      <h2>Customer Management</h2>
+      <p class="muted">Customer records are grouped from existing orders. Guest checkout does not yet create customer login accounts.</p>
+      <input id="customerSearch" type="search" placeholder="Search customer name or phone number">
+      <div id="customerSummary" class="muted"></div>
+      <div id="customerList">Loading customers...</div>
     </div>
   </section>
 
@@ -266,6 +277,7 @@ const $=id=>document.getElementById(id);
 let restaurantData=[];
 let deliveryData=[];
 let orderData=[];
+let customerData=[];
 let loading=false;
 
 function status(message){
@@ -367,6 +379,7 @@ async function loadAll(){
 
     deliveryData=[...combined.values()];
     orderData=orders.docs.map(d=>({id:d.id,...d.data()}));
+    buildCustomerDirectory();
 
     renderAll();
     status("SUCCESS: Super Admin data loaded.");
@@ -408,6 +421,7 @@ function renderAll(){
   renderRestaurants();
   renderDelivery();
   renderOrders();
+  renderCustomers();
 }
 
 function renderRestaurants(){
@@ -454,6 +468,95 @@ function renderDelivery(){
     `;
   }).join("");
 }
+
+function buildCustomerDirectory(){
+  const customers=new Map();
+
+  orderData.forEach(order=>{
+    const name=String(valueOf(order,["customerName","name","userName"])||"Customer").trim();
+    const phone=String(valueOf(order,["customerPhone","phone","mobile"])||"").trim();
+    const key=phone ? "phone:"+phone : "order:"+order.id;
+
+    if(!customers.has(key)){
+      customers.set(key,{
+        key,
+        name,
+        phone,
+        orders:[],
+        total:0,
+        lastOrderAt:0
+      });
+    }
+
+    const customer=customers.get(key);
+    customer.orders.push(order);
+    customer.total+=Number(valueOf(order,["total","totalAmount","grandTotal"])||0);
+    const time=order.createdAt?.toMillis?.()||0;
+    if(time>customer.lastOrderAt) customer.lastOrderAt=time;
+    if(name && name!=="Customer") customer.name=name;
+  });
+
+  customerData=[...customers.values()].sort((a,b)=>
+    b.lastOrderAt-a.lastOrderAt
+  );
+}
+
+function renderCustomers(){
+  const query=String($("customerSearch")?.value||"").trim().toLowerCase();
+  const filtered=customerData.filter(customer=>
+    customer.name.toLowerCase().includes(query) ||
+    customer.phone.toLowerCase().includes(query)
+  );
+
+  $("customerSummary").textContent=
+    customerData.length+" customer record(s) found from "+orderData.length+" order(s).";
+
+  if(!filtered.length){
+    $("customerList").innerHTML='<div class="item">No matching customers found.</div>';
+    return;
+  }
+
+  $("customerList").innerHTML=filtered.map(customer=>{
+    const latest=customer.lastOrderAt
+      ?new Date(customer.lastOrderAt).toLocaleString("en-IN")
+      :"Time unavailable";
+
+    const history=[...customer.orders].sort((a,b)=>
+      (b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0)
+    ).map(order=>{
+      const date=order.createdAt?.toDate
+        ?order.createdAt.toDate().toLocaleString("en-IN")
+        :"Time unavailable";
+      const items=Array.isArray(order.items)
+        ?order.items.map(item=>{
+          if(typeof item==="string") return safe(item);
+          return safe(item.name||item.title||"Item")+" × "+safe(item.quantity||item.qty||1);
+        }).join(", ")
+        :"Items unavailable";
+
+      return '<div class="item">'+
+        '<b>Order #'+safe(order.id.slice(-8))+'</b>'+
+        '<p>Status: '+safe(order.status||"New")+'</p>'+
+        '<p>Restaurant: '+safe(order.restaurantName||order.restaurantId||"Not specified")+'</p>'+
+        '<p>Items: '+items+'</p>'+
+        '<p>Order value: '+money(valueOf(order,["total","totalAmount","grandTotal"]))+'</p>'+
+        '<p class="muted">'+safe(date)+'</p>'+
+        '</div>';
+    }).join("");
+
+    return '<div class="item">'+
+      '<h3>'+safe(customer.name)+'</h3>'+
+      '<p>Phone: <b>'+safe(customer.phone||"Not provided")+'</b></p>'+
+      '<p>Total orders: <b>'+customer.orders.length+'</b></p>'+
+      '<p>Total order value: <b>'+money(customer.total)+'</b></p>'+
+      '<p class="muted">Latest order: '+safe(latest)+'</p>'+
+      '<details><summary style="cursor:pointer;color:#ffb16f;padding:8px 0">VIEW ORDER HISTORY</summary>'+
+      history+'</details>'+
+      '</div>';
+  }).join("");
+}
+
+$("customerSearch").addEventListener("input",renderCustomers);
 
 function renderOrders(){
   if(!orderData.length){
