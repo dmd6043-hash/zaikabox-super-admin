@@ -238,7 +238,7 @@ import {initializeApp}
 from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
 
 import {
-  getFirestore,collection,getDocs,doc,writeBatch
+  getFirestore,collection,getDocs,doc,writeBatch,updateDoc,serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 import {
@@ -482,6 +482,16 @@ function renderOrders(){
       "<p>Order type: "+safe(o.orderType||"Not specified")+"</p>"+
       "<p>Amount: "+money(total)+"</p>"+
       "<p>Delivery UID: "+safe(o.assignedTo||"Not assigned")+"</p>"+
+      "<label style=\"display:block;font-size:12px;color:#ffbd87;margin:8px 0\">Assign delivery partner</label>"+
+      "<select class=\"delivery-assignee\" data-assignee-order=\""+safe(o.id)+"\" style=\"width:100%;padding:12px;border-radius:10px;background:#100d0a;color:white;border:1px solid #49372a\">"+
+      "<option value=\"\">"+(o.assignedTo?"Keep current assignment":"Select active delivery partner")+"</option>"+
+      deliveryData.filter(p=>p.active===true && String(p.role||"").trim().toLowerCase()==="delivery").map(p=>
+        "<option value=\""+safe(p.id)+"\" "+(p.id===o.assignedTo?"selected":"")+">"+
+        safe(p.name||p.displayName||p.email||p.id)+(p.email?" — "+safe(p.email):"")+"</option>"
+      ).join("")+
+      "</select>"+
+      "<button class=\"primary assign-delivery\" data-assign-order=\""+safe(o.id)+"\">SAVE ASSIGNMENT</button>"+
+      "<p class=\"muted\">Only active delivery accounts are listed.</p>"+
       "<p class=\"muted\">"+safe(date)+"</p>"+
       "<label style=\"display:block;font-size:12px;color:#ffbd87;margin:8px 0\">Update order status</label>"+
       "<select class=\"order-status-select\" data-order-status=\""+safe(o.id)+"\" style=\"width:100%;padding:12px;border-radius:10px;background:#100d0a;color:white;border:1px solid #49372a\">"+options+"</select>"+
@@ -522,6 +532,44 @@ $("orderList").addEventListener("click",async event=>{
   }finally{
     button.disabled=false;
     button.textContent="SAVE STATUS";
+  }
+});
+
+$("orderList").addEventListener("click",async event=>{
+  const button=event.target.closest("button[data-assign-order]");
+  if(!button)return;
+  const orderId=button.dataset.assignOrder;
+  const select=$("orderList").querySelector("select[data-assignee-order=\""+orderId+"\"]");
+  const uid=select?.value;
+  if(!uid){
+    status("Active delivery partner select kijiye.");
+    return;
+  }
+  const partner=deliveryData.find(p=>p.id===uid && p.active===true && String(p.role||"").trim().toLowerCase()==="delivery");
+  const order=orderData.find(item=>item.id===orderId);
+  if(!partner||!order){
+    status("Selected delivery partner ya order nahi mila. Refresh kijiye.");
+    return;
+  }
+  if(!confirm("Order #"+orderId.slice(-8)+" ko "+(partner.name||partner.displayName||partner.email||uid)+" assign karna hai?"))return;
+  button.disabled=true;
+  button.textContent="ASSIGNING...";
+  status("Delivery partner assign ho raha hai...");
+  try{
+    await updateDoc(doc(db,"orders",orderId),{
+      assignedTo:uid,
+      assignedToEmail:partner.email||"",
+      assignedAt:serverTimestamp()
+    });
+    status("SUCCESS: Delivery partner assigned.");
+    await loadAll();
+  }catch(error){
+    console.error("DELIVERY ASSIGNMENT ERROR",error);
+    status("ASSIGNMENT ERROR: "+(error.code||"")+" "+error.message);
+    alert("Assignment save nahi hua: "+error.message);
+  }finally{
+    button.disabled=false;
+    button.textContent="SAVE ASSIGNMENT";
   }
 });
 
