@@ -222,7 +222,12 @@ button:disabled{opacity:.5}
           <input id="newRestaurantName" placeholder="Restaurant name">
           <input id="newRestaurantCity" placeholder="City">
           <textarea id="newRestaurantDescription" placeholder="Short description"></textarea>
-          <label class="muted"><input id="newRestaurantVeg" type="checkbox" checked style="width:auto;margin-right:8px">Pure Veg restaurant</label>
+          <label class="muted">FOOD CATEGORY</label>
+          <select id="newRestaurantCategory">
+            <option value="Veg Only">Veg Only</option>
+            <option value="Non-Veg Only">Non-Veg Only</option>
+            <option value="Veg + Non-Veg">Veg + Non-Veg</option>
+          </select>
           <label class="muted"><input id="newRestaurantActive" type="checkbox" checked style="width:auto;margin-right:8px">Restaurant active (visible to customers)</label>
           <button class="primary" id="addRestaurantBtn">ADD RESTAURANT</button>
         </div>
@@ -458,7 +463,12 @@ function renderRestaurants(){
         <input data-r-city value="${safe(city)}" maxlength="80">
         <label class="muted">Description</label>
         <textarea data-r-description maxlength="300">${safe(r.description||"")}</textarea>
-        <label class="muted"><input data-r-veg type="checkbox" ${r.isPureVeg===true?"checked":""} style="width:auto;margin-right:8px">Pure Veg</label>
+        <label class="muted">FOOD CATEGORY</label>
+        <select data-r-category>
+          <option value="Veg Only" ${(r.foodCategory||(r.isPureVeg===true?"Veg Only":"Non-Veg Only"))==="Veg Only"?"selected":""}>Veg Only</option>
+          <option value="Non-Veg Only" ${(r.foodCategory||(r.isPureVeg===true?"Veg Only":"Non-Veg Only"))==="Non-Veg Only"?"selected":""}>Non-Veg Only</option>
+          <option value="Veg + Non-Veg" ${r.foodCategory==="Veg + Non-Veg"?"selected":""}>Veg + Non-Veg</option>
+        </select>
         <label class="muted"><input data-r-active type="checkbox" ${r.active===true?"checked":""} style="width:auto;margin-right:8px">Active — visible in customer app</label>
         <button class="primary save-restaurant" data-save-restaurant="${safe(r.id)}">SAVE CHANGES</button>
       </div>`;
@@ -480,7 +490,8 @@ $("restaurantList").addEventListener("click",async event=>{
   try{
     await updateDoc(doc(db,"restaurants",id),{
       name,city,description,
-      isPureVeg:card.querySelector("[data-r-veg]").checked,
+      foodCategory:card.querySelector("[data-r-category]").value,
+      isPureVeg:card.querySelector("[data-r-category]").value==="Veg Only",
       active:card.querySelector("[data-r-active]").checked,
       updatedAt:serverTimestamp()
     });
@@ -496,7 +507,7 @@ $("addRestaurantBtn").onclick=async()=>{
   const name=$("newRestaurantName").value.trim();
   const city=$("newRestaurantCity").value.trim();
   const description=$("newRestaurantDescription").value.trim();
-  const isPureVeg=$("newRestaurantVeg").checked;
+  const foodCategory=$("newRestaurantCategory").value;
   const active=$("newRestaurantActive").checked;
   if(!name||!city){status("Naya restaurant add karne ke liye name aur city bhariye.");return;}
   let id=name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,45);
@@ -509,12 +520,12 @@ $("addRestaurantBtn").onclick=async()=>{
     if(!confirm(name+" ko ZaikaBox restaurants mein add karna hai?\\nRestaurant ID: "+id))return;
     const button=$("addRestaurantBtn");button.disabled=true;button.textContent="ADDING...";
     await setDoc(doc(db,"restaurants",id),{
-      name,city,description,isPureVeg,active,
+      name,city,description,foodCategory,isPureVeg:foodCategory==="Veg Only",active,
       createdAt:serverTimestamp(),updatedAt:serverTimestamp()
     });
     $("newRestaurantName").value="";$("newRestaurantCity").value="";
     $("newRestaurantDescription").value="";
-    $("newRestaurantVeg").checked=true;$("newRestaurantActive").checked=true;
+    $("newRestaurantCategory").value="Veg Only";$("newRestaurantActive").checked=true;
     status("SUCCESS: Restaurant added. Restaurant ID: "+id);
     await loadAll();
     button.disabled=false;button.textContent="ADD RESTAURANT";
