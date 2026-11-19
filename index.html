@@ -48,7 +48,7 @@ header{padding:12px 0 20px}
 h2{font-size:18px;margin:0 0 14px}
 h3{font-size:16px;color:#ffb16f}
 
-input{
+input,select,textarea{
   width:100%;
   padding:14px;
   margin:7px 0;
@@ -57,7 +57,10 @@ input{
   background:#100d0a;
   color:white;
   font-size:15px;
+  font-family:inherit;
 }
+
+textarea{min-height:82px;resize:vertical}
 
 button{
   border:0;
@@ -212,7 +215,18 @@ button:disabled{opacity:.5}
   <section id="restaurantsTab" class="tab hidden">
     <div class="card">
       <h2>Restaurant Management</h2>
-      <p class="muted">Registered restaurants from Firestore.</p>
+      <p class="muted">Add, edit, activate/deactivate restaurants. Existing restaurant IDs and menu data remain unchanged.</p>
+      <details class="item" open>
+        <summary style="cursor:pointer;color:#ffb16f;font-weight:bold">＋ ADD NEW RESTAURANT</summary>
+        <div style="padding-top:12px">
+          <input id="newRestaurantName" placeholder="Restaurant name">
+          <input id="newRestaurantCity" placeholder="City">
+          <textarea id="newRestaurantDescription" placeholder="Short description"></textarea>
+          <label class="muted"><input id="newRestaurantVeg" type="checkbox" checked style="width:auto;margin-right:8px">Pure Veg restaurant</label>
+          <label class="muted"><input id="newRestaurantActive" type="checkbox" checked style="width:auto;margin-right:8px">Restaurant active (visible to customers)</label>
+          <button class="primary" id="addRestaurantBtn">ADD RESTAURANT</button>
+        </div>
+      </details>
       <div id="restaurantList">Loading...</div>
     </div>
   </section>
@@ -249,7 +263,7 @@ import {initializeApp}
 from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
 
 import {
-  getFirestore,collection,getDocs,doc,writeBatch,updateDoc,serverTimestamp
+  getFirestore,collection,getDocs,doc,writeBatch,updateDoc,setDoc,getDoc,serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 import {
@@ -426,27 +440,90 @@ function renderAll(){
 
 function renderRestaurants(){
   if(!restaurantData.length){
-    $("restaurantList").innerHTML="No restaurants found.";
+    $("restaurantList").innerHTML="<div class='item'>No restaurants found yet.</div>";
     return;
   }
-
   $("restaurantList").innerHTML=restaurantData.map(r=>{
     const name=valueOf(r,["name","restaurantName"])||r.id;
     const city=valueOf(r,["city","location"])||"";
     const active=r.active===true?"Active":r.active===false?"Inactive":"Not specified";
-
     return `
-      <div class="item">
+      <div class="item" data-restaurant-card="${safe(r.id)}">
         <h3>${safe(name)}</h3>
         <span class="tag">${safe(active)}</span>
-        <p>Restaurant ID: ${safe(r.id)}</p>
-        <p>City: ${safe(city)}</p>
-        <p>Pure Veg: ${r.isPureVeg===true?"Yes":r.isPureVeg===false?"No":"Not specified"}</p>
-        <p class="muted">${safe(r.description||"")}</p>
-      </div>
-    `;
+        <p class="muted">Restaurant ID: <b>${safe(r.id)}</b></p>
+        <label class="muted">Restaurant name</label>
+        <input data-r-name value="${safe(name)}" maxlength="80">
+        <label class="muted">City</label>
+        <input data-r-city value="${safe(city)}" maxlength="80">
+        <label class="muted">Description</label>
+        <textarea data-r-description maxlength="300">${safe(r.description||"")}</textarea>
+        <label class="muted"><input data-r-veg type="checkbox" ${r.isPureVeg===true?"checked":""} style="width:auto;margin-right:8px">Pure Veg</label>
+        <label class="muted"><input data-r-active type="checkbox" ${r.active===true?"checked":""} style="width:auto;margin-right:8px">Active — visible in customer app</label>
+        <button class="primary save-restaurant" data-save-restaurant="${safe(r.id)}">SAVE CHANGES</button>
+      </div>`;
   }).join("");
 }
+
+ 
+$("restaurantList").addEventListener("click",async event=>{
+  const button=event.target.closest("button[data-save-restaurant]");
+  if(!button)return;
+  const id=button.dataset.saveRestaurant;
+  const card=button.closest("[data-restaurant-card]");
+  const name=card.querySelector("[data-r-name]").value.trim();
+  const city=card.querySelector("[data-r-city]").value.trim();
+  const description=card.querySelector("[data-r-description]").value.trim();
+  if(!name||!city){status("Restaurant name aur city dono zaroori hain.");return;}
+  if(!confirm(name+" ki details save karni hain?"))return;
+  button.disabled=true;button.textContent="SAVING...";
+  try{
+    await updateDoc(doc(db,"restaurants",id),{
+      name,city,description,
+      isPureVeg:card.querySelector("[data-r-veg]").checked,
+      active:card.querySelector("[data-r-active]").checked,
+      updatedAt:serverTimestamp()
+    });
+    status("SUCCESS: "+name+" updated.");
+    await loadAll();
+  }catch(error){
+    console.error(error);status("SAVE ERROR: "+(error.code||"")+" "+error.message);
+    alert("Changes save nahi hue: "+error.message);
+  }finally{button.disabled=false;button.textContent="SAVE CHANGES";}
+});
+
+$("addRestaurantBtn").onclick=async()=>{
+  const name=$("newRestaurantName").value.trim();
+  const city=$("newRestaurantCity").value.trim();
+  const description=$("newRestaurantDescription").value.trim();
+  const isPureVeg=$("newRestaurantVeg").checked;
+  const active=$("newRestaurantActive").checked;
+  if(!name||!city){status("Naya restaurant add karne ke liye name aur city bhariye.");return;}
+  let id=name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,45);
+  if(!id){status("Restaurant ID generate nahi ho payi. Naam badal kar try karein.");return;}
+  const base=id;let suffix=2;
+  try{
+    while((await getDoc(doc(db,"restaurants",id))).exists()){
+      id=base+"-"+suffix++;
+    }
+    if(!confirm(name+" ko ZaikaBox restaurants mein add karna hai?\\nRestaurant ID: "+id))return;
+    const button=$("addRestaurantBtn");button.disabled=true;button.textContent="ADDING...";
+    await setDoc(doc(db,"restaurants",id),{
+      name,city,description,isPureVeg,active,
+      createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+    });
+    $("newRestaurantName").value="";$("newRestaurantCity").value="";
+    $("newRestaurantDescription").value="";
+    $("newRestaurantVeg").checked=true;$("newRestaurantActive").checked=true;
+    status("SUCCESS: Restaurant added. Restaurant ID: "+id);
+    await loadAll();
+    button.disabled=false;button.textContent="ADD RESTAURANT";
+  }catch(error){
+    console.error(error);status("ADD ERROR: "+(error.code||"")+" "+error.message);
+    alert("Restaurant add nahi hua: "+error.message);
+    $("addRestaurantBtn").disabled=false;$("addRestaurantBtn").textContent="ADD RESTAURANT";
+  }
+};
 
 function renderDelivery(){
   if(!deliveryData.length){
