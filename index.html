@@ -473,13 +473,17 @@ function renderRestaurants(){
     const name=valueOf(r,["name","restaurantName"])||r.id;
     const city=valueOf(r,["city","location"])||"";
     const active=r.active===true?"Active":r.active===false?"Inactive":"Not specified";
-    const approval=r.approvalStatus || (r.active===true ? "approved" : "pending");
-    const approvalLabel={approved:"Approved",pending:"Pending Review",rejected:"Rejected",suspended:"Suspended"}[approval] || "Pending Review";
+    const storedApproval=String(r.approvalStatus||"").toLowerCase();
+    const approval=["approved","pending","rejected","suspended"].includes(storedApproval)
+      ? storedApproval
+      : (r.active===true ? "approved" : "legacy-inactive");
+    const approvalLabel={approved:"Approved",pending:"Pending Review",rejected:"Rejected",suspended:"Suspended","legacy-inactive":"Inactive · Not reviewed"}[approval] || "Status not set";
     return `
       <div class="item" data-restaurant-card="${safe(r.id)}">
         <h3>${safe(name)}</h3>
         <span class="tag">${safe(approvalLabel)} · ${safe(active)}</span>
         <p class="muted">Approval status: <b>${safe(approvalLabel)}</b></p>
+        ${approval==="legacy-inactive" ? '<p class="muted">Legacy inactive restaurant. Purana status preserve hai; ise Pending Review count mein include nahi kiya gaya.</p>' : ''}
         <div class="restaurant-controls">
           <button class="primary" data-restaurant-action="approve" data-restaurant-id="${safe(r.id)}">APPROVE</button>
           <button class="danger" data-restaurant-action="reject" data-restaurant-id="${safe(r.id)}">REJECT</button>
