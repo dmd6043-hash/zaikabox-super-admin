@@ -214,7 +214,13 @@ button:disabled{opacity:.5}
 
   <section id="restaurantsTab" class="tab hidden">
     <div class="card">
-      <h2>Restaurant Management</h2>
+      <h2>Restaurant Approval &amp; Control</h2>
+      <div class="grid">
+        <div class="stat"><strong id="pendingRestaurantCount">0</strong><span>Pending Review</span></div>
+        <div class="stat"><strong id="approvedRestaurantCount">0</strong><span>Approved</span></div>
+        <div class="stat"><strong id="rejectedRestaurantCount">0</strong><span>Rejected</span></div>
+        <div class="stat"><strong id="suspendedRestaurantCount">0</strong><span>Suspended</span></div>
+      </div>
       <p class="muted">Add, edit, activate/deactivate restaurants. Existing restaurant IDs and menu data remain unchanged.</p>
       <details class="item" open>
         <summary style="cursor:pointer;color:#ffb16f;font-weight:bold">＋ ADD NEW RESTAURANT</summary>
@@ -449,6 +455,16 @@ function renderAll(){
 }
 
 function renderRestaurants(){
+  const counts={pending:0,approved:0,rejected:0,suspended:0};
+  restaurantData.forEach(r=>{
+    const s=String(r.approvalStatus||"").toLowerCase();
+    if(["pending","approved","rejected","suspended"].includes(s)) counts[s]++;
+    else if(r.active===true) counts.approved++;
+  });
+  $("pendingRestaurantCount").textContent=counts.pending;
+  $("approvedRestaurantCount").textContent=counts.approved;
+  $("rejectedRestaurantCount").textContent=counts.rejected;
+  $("suspendedRestaurantCount").textContent=counts.suspended;
   if(!restaurantData.length){
     $("restaurantList").innerHTML="<div class='item'>No restaurants found yet.</div>";
     return;
