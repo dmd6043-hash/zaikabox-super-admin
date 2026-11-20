@@ -238,6 +238,18 @@ button:disabled{opacity:.5}
           <button class="primary" id="addRestaurantBtn">ADD RESTAURANT</button>
         </div>
       </details>
+      <div style="margin-top:16px">
+        <input id="restaurantSearch" type="search" placeholder="Search restaurant name, city or ID">
+        <select id="restaurantStatusFilter" aria-label="Filter restaurants by approval status">
+          <option value="all">All Restaurants</option>
+          <option value="pending">Pending Review</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="suspended">Suspended</option>
+          <option value="legacy-inactive">Inactive · Not reviewed</option>
+        </select>
+        <p class="muted" id="restaurantResultSummary">Showing all restaurants</p>
+      </div>
       <div id="restaurantList">Loading...</div>
     </div>
   </section>
@@ -467,9 +479,28 @@ function renderRestaurants(){
   $("suspendedRestaurantCount").textContent=counts.suspended;
   if(!restaurantData.length){
     $("restaurantList").innerHTML="<div class='item'>No restaurants found yet.</div>";
+    $("restaurantResultSummary").textContent="No restaurants available.";
     return;
   }
-  $("restaurantList").innerHTML=restaurantData.map(r=>{
+  const query=String($("restaurantSearch").value||"").trim().toLowerCase();
+  const filter=$("restaurantStatusFilter").value||"all";
+  const filtered=restaurantData.filter(r=>{
+    const name=String(valueOf(r,["name","restaurantName"])||r.id).toLowerCase();
+    const city=String(valueOf(r,["city","location"])||"").toLowerCase();
+    const id=String(r.id||"").toLowerCase();
+    const category=String(r.foodCategory||"").toLowerCase();
+    const stored=String(r.approvalStatus||"").toLowerCase();
+    const approval=["approved","pending","rejected","suspended"].includes(stored)
+      ?stored:(r.active===true?"approved":"legacy-inactive");
+    const matchesQuery=!query||name.includes(query)||city.includes(query)||id.includes(query)||category.includes(query);
+    return matchesQuery&&(filter==="all"||approval===filter);
+  });
+  $("restaurantResultSummary").textContent="Showing "+filtered.length+" of "+restaurantData.length+" restaurant(s).";
+  if(!filtered.length){
+    $("restaurantList").innerHTML="<div class='item'>No matching restaurants found. Search ya status filter badal kar dekhein.</div>";
+    return;
+  }
+  $("restaurantList").innerHTML=filtered.map(r=>{
     const name=valueOf(r,["name","restaurantName"])||r.id;
     const city=valueOf(r,["city","location"])||"";
     const active=r.active===true?"Active":r.active===false?"Inactive":"Not specified";
@@ -509,7 +540,10 @@ function renderRestaurants(){
   }).join("");
 }
 
- 
+
+$("restaurantSearch").addEventListener("input",renderRestaurants);
+$("restaurantStatusFilter").addEventListener("change",renderRestaurants);
+
 $("restaurantList").addEventListener("click",async event=>{
   const actionButton=event.target.closest("button[data-restaurant-action]");
   if(actionButton){
