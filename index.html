@@ -263,7 +263,15 @@ button:disabled{opacity:.5}
 
   <section id="ordersTab" class="tab hidden">
     <div class="card">
-      <h2>All Orders</h2>
+      <h2>Payments &amp; Settlements</h2>
+      <p class="muted">Customer UTR ko apne UPI/bank app mein verify karne ke baad hi Paid mark karein.</p>
+      <label for="platformUpiId">ZaikaBox UPI ID</label>
+      <input id="platformUpiId" type="text" placeholder="example@upi" value="8269568200-3@ybl">
+      <button class="primary" id="savePaymentSettings">SAVE UPI SETTINGS</button>
+      <p class="muted" id="paymentSettingsStatus">Temporary UPI ID: 8269568200-3@ybl</p>
+    </div>
+    <div class="card">
+      <h2>All Orders &amp; Payment Verification</h2>
       <div id="orderList">Loading...</div>
     </div>
   </section>
@@ -394,11 +402,12 @@ async function loadAll(){
   status("Firebase se data load ho raha hai...");
 
   try{
-    const [restaurants,accounts,users,orders]=await Promise.all([
+    const [restaurants,accounts,users,orders,paymentSettings]=await Promise.all([
       getDocs(collection(db,"restaurants")),
       getDocs(collection(db,"accounts")),
       getDocs(collection(db,"users")),
-      getDocs(collection(db,"orders"))
+      getDocs(collection(db,"orders")),
+      getDoc(doc(db,"platformSettings","payments"))
     ]);
 
     restaurantData=restaurants.docs.map(d=>({id:d.id,...d.data()}));
@@ -421,6 +430,9 @@ async function loadAll(){
 
     deliveryData=[...combined.values()];
     orderData=orders.docs.map(d=>({id:d.id,...d.data()}));
+    const savedUpiId=paymentSettings.exists()?paymentSettings.data().upiId:"8269568200-3@ybl";
+    $("platformUpiId").value=savedUpiId||"8269568200-3@ybl";
+    $("paymentSettingsStatus").textContent=paymentSettings.exists()?"Saved UPI settings loaded.":"Temporary UPI ID active; save to publish it to checkout.";
     buildCustomerDirectory();
 
     renderAll();
@@ -805,26 +817,46 @@ function renderOrders(){
     return;
   }
   const statuses=["New","Accepted","Rejected","Preparing","Ready for Pickup","Out for Delivery","Picked Up","Delivered"];
-  const sorted=[...orderData].sort((a,b)=>{
-    const at=a.createdAt?.toMillis?.()||0;
-    const bt=b.createdAt?.toMillis?.()||0;
-    return bt-at;
-  });
+  const sorted=[...orderData].sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
   $("orderList").innerHTML=sorted.map(o=>{
     const name=valueOf(o,["customerName","name","userName"])||"Customer";
     const total=valueOf(o,["total","totalAmount","grandTotal"]);
     const date=o.createdAt?.toDate?o.createdAt.toDate().toLocaleString("en-IN"):"Time unavailable";
     const current=String(o.status||"New");
-    const options=[...new Set([...statuses,current])].map(s=>
-      "<option value=\""+safe(s)+"\" "+(s===current?"selected":"")+">"+safe(s)+"</option>"
-    ).join("");
+    const paymentStatus=String(o.paymentStatus||"Legacy / Not recorded");
+    const pending=o.paymentStatus==="Pending" && current==="Payment Pending";
+    const failed=o.paymentStatus==="Failed" || current==="Payment Failed";
+    const paymentPanel=pending
+      ? "<div style=\"border:1px solid #ffb16f;border-radius:12px;padding:12px;margin:12px 0\">"+
+        "<b>PAYMENT VERIFICATION REQUIRED</b>"+
+        "<p>Method: "+safe(o.paymentMethod||"UPI")+"</p>"+
+        "<p>Payment status: "+safe(paymentStatus)+"</p>"+
+        "<p style=\"word-break:break-all\">UTR / Transaction ID: <b>"+safe(o.utr||"Not submitted")+"</b></p>"+
+        "<button class=\"primary\" data-payment-action=\"paid\" data-payment-order=\""+safe(o.id)+"\">VERIFY &amp; MARK PAID</button>"+
+        "<button class=\"danger\" data-payment-action=\"failed\" data-payment-order=\""+safe(o.id)+"\">MARK FAILED</button>"+
+        "<p class=\"muted\">Paid tabhi karein jab bank/UPI app mein actual credit confirm ho.</p>"+
+        "</div>"
+      : "<p>Payment status: <b>"+safe(paymentStatus)+"</b></p>"+
+        (o.utr?"<p>UTR: "+safe(o.utr)+"</p>":"");
+    if(pending||failed){
+      return "<div class=\"item\">"+
+        "<h3>Order #"+safe(o.id.slice(-8))+"</h3>"+
+        "<span class=\"tag\">"+safe(current)+"</span>"+
+        "<p>Customer: "+safe(name)+"</p>"+
+        "<p>Restaurant: "+safe(o.restaurantName||o.restaurantId||"Not specified")+"</p>"+
+        "<p>Order type: "+safe(o.orderType||"Not specified")+"</p>"+
+        "<p>Amount: "+money(total)+"</p>"+paymentPanel+
+        "<p class=\"muted\">"+safe(date)+"</p>"+
+        "</div>";
+    }
+    const options=[...new Set([...statuses,current])].map(s=>"<option value=\""+safe(s)+"\" "+(s===current?"selected":"")+">"+safe(s)+"</option>").join("");
     return "<div class=\"item\">"+
       "<h3>Order #"+safe(o.id.slice(-8))+"</h3>"+
       "<span class=\"tag\">"+safe(current)+"</span>"+
       "<p>Customer: "+safe(name)+"</p>"+
       "<p>Restaurant: "+safe(o.restaurantName||o.restaurantId||"Not specified")+"</p>"+
       "<p>Order type: "+safe(o.orderType||"Not specified")+"</p>"+
-      "<p>Amount: "+money(total)+"</p>"+
+      "<p>Amount: "+money(total)+"</p>"+paymentPanel+
       "<p>Delivery UID: "+safe(o.assignedTo||"Not assigned")+"</p>"+
       "<label style=\"display:block;font-size:12px;color:#ffbd87;margin:8px 0\">Assign delivery partner</label>"+
       "<select class=\"delivery-assignee\" data-assignee-order=\""+safe(o.id)+"\" style=\"width:100%;padding:12px;border-radius:10px;background:#100d0a;color:white;border:1px solid #49372a\">"+
@@ -843,6 +875,74 @@ function renderOrders(){
       "</div>";
   }).join("");
 }
+
+$("orderList").addEventListener("click",async event=>{
+  const button=event.target.closest("button[data-payment-action]");
+  if(!button)return;
+  const orderId=button.dataset.paymentOrder;
+  const action=button.dataset.paymentAction;
+  const order=orderData.find(item=>item.id===orderId);
+  if(!order||order.paymentStatus!=="Pending")return;
+  if(action==="paid"&&!confirm("UPI/bank app mein UTR "+(order.utr||"")+" se ₹"+Number(order.total||0)+" ka payment credit verify kar liya? Order ko Paid karke restaurant ko bhejna hai?"))return;
+  if(action==="failed"&&!confirm("Is payment ko Failed mark karna hai?"))return;
+  button.disabled=true;
+  button.textContent=action==="paid"?"VERIFYING...":"UPDATING...";
+  try{
+    const batch=writeBatch(db);
+    const nextPaymentStatus=action==="paid"?"Paid":"Failed";
+    const nextOrderStatus=action==="paid"?"New":"Payment Failed";
+    batch.update(doc(db,"orders",orderId),{
+      paymentStatus:nextPaymentStatus,
+      status:nextOrderStatus,
+      paymentVerifiedAt:serverTimestamp(),
+      paymentVerifiedBy:auth.currentUser.uid,
+      updatedAt:serverTimestamp()
+    });
+    if(order.trackingCode){
+      const code=String(order.trackingCode).toUpperCase().replace(/[\\s-]/g,"");
+      batch.update(doc(db,"orderTracking",code),{status:nextOrderStatus});
+    }
+    await batch.commit();
+    status(action==="paid"?"SUCCESS: Payment verified. Order released to restaurant.":"Payment marked Failed.");
+    await loadAll();
+  }catch(error){
+    console.error("PAYMENT VERIFICATION ERROR",error);
+    status("PAYMENT ERROR: "+(error.code||"")+" "+error.message);
+    alert("Payment status update nahi hua: "+error.message);
+  }finally{
+    button.disabled=false;
+  }
+});
+
+$("savePaymentSettings").addEventListener("click",async()=>{
+  const upiId=$("platformUpiId").value.trim();
+  if(!/^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$/.test(upiId)){
+    status("Valid UPI ID enter kijiye, jaise name@bank.");
+    $("platformUpiId").focus();
+    return;
+  }
+  const button=$("savePaymentSettings");
+  button.disabled=true;
+  button.textContent="SAVING...";
+  try{
+    await setDoc(doc(db,"platformSettings","payments"),{
+      upiId,
+      accountName:"ZaikaBox",
+      onlinePaymentsEnabled:true,
+      updatedAt:serverTimestamp(),
+      updatedBy:auth.currentUser.uid
+    },{merge:true});
+    $("paymentSettingsStatus").textContent="UPI ID saved. New customer checkouts will use this ID.";
+    status("SUCCESS: UPI settings saved.");
+  }catch(error){
+    console.error("PAYMENT SETTINGS ERROR",error);
+    status("SETTINGS ERROR: "+(error.code||"")+" "+error.message);
+    alert("UPI settings save nahi hui: "+error.message);
+  }finally{
+    button.disabled=false;
+    button.textContent="SAVE UPI SETTINGS";
+  }
+});
 
 $("orderList").addEventListener("click",async event=>{
   const button=event.target.closest("button[data-save-order]");
