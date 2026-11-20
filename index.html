@@ -899,7 +899,7 @@ $("orderList").addEventListener("click",async event=>{
       updatedAt:serverTimestamp()
     });
     if(order.trackingCode){
-      const code=String(order.trackingCode).toUpperCase().replace(/[\\s-]/g,"");
+      const code=String(order.trackingCode).toUpperCase().replace(/[\s-]/g,"");
       batch.update(doc(db,"orderTracking",code),{status:nextOrderStatus});
     }
     await batch.commit();
