@@ -407,7 +407,7 @@ async function loadAll(){
       getDocs(collection(db,"accounts")),
       getDocs(collection(db,"users")),
       getDocs(collection(db,"orders")),
-      getDoc(doc(db,"platformSettings","payments"))
+      getDoc(doc(db,"platformSettings","payments")).catch(error=>{console.warn("Payment settings not readable yet:",error);return null;})
     ]);
 
     restaurantData=restaurants.docs.map(d=>({id:d.id,...d.data()}));
@@ -430,9 +430,9 @@ async function loadAll(){
 
     deliveryData=[...combined.values()];
     orderData=orders.docs.map(d=>({id:d.id,...d.data()}));
-    const savedUpiId=paymentSettings.exists()?paymentSettings.data().upiId:"8269568200-3@ybl";
+    const savedUpiId=paymentSettings?.exists()?paymentSettings.data().upiId:"8269568200-3@ybl";
     $("platformUpiId").value=savedUpiId||"8269568200-3@ybl";
-    $("paymentSettingsStatus").textContent=paymentSettings.exists()?"Saved UPI settings loaded.":"Temporary UPI ID active; save to publish it to checkout.";
+    $("paymentSettingsStatus").textContent=paymentSettings?.exists()?"Saved UPI settings loaded.":"Temporary UPI ID active; save to publish it to checkout.";
     buildCustomerDirectory();
 
     renderAll();
