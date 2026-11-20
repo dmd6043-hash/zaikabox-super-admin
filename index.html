@@ -390,9 +390,14 @@ async function loadAll(){
 
     const combined=new Map();
 
-    [...regularUsers,...accountUsers].forEach(p=>{
+    regularUsers.forEach(p=>{
       if(String(p.role||"").trim().toLowerCase()==="delivery"){
-        combined.set(p.id,{...(combined.get(p.id)||{}),...p});
+        combined.set(p.id,{...(combined.get(p.id)||{}),...p,accountExists:false});
+      }
+    });
+    accountUsers.forEach(p=>{
+      if(String(p.role||"").trim().toLowerCase()==="delivery"){
+        combined.set(p.id,{...(combined.get(p.id)||{}),...p,accountExists:true});
       }
     });
 
@@ -538,24 +543,70 @@ $("addRestaurantBtn").onclick=async()=>{
 
 function renderDelivery(){
   if(!deliveryData.length){
-    $("deliveryList").innerHTML="No delivery partners found.";
+    $("deliveryList").innerHTML="<div class='item'>No delivery partners found.</div>";
     return;
   }
 
   $("deliveryList").innerHTML=deliveryData.map(p=>{
-    const active=p.active===true?"Active":p.active===false?"Inactive":"Not specified";
+    const active=p.active===true;
+    const assigned=orderData.filter(o=>o.assignedTo===p.id);
+    const completed=assigned.filter(o=>String(o.status||"").toLowerCase()==="delivered").length;
+    const pending=assigned.length-completed;
+    const accountNote=p.accountExists
+      ? "Login account available"
+      : "No accounts record — delivery login may not work";
 
     return `
-      <div class="item">
+      <div class="item" data-delivery-card="${safe(p.id)}">
         <h3>${safe(p.name||p.displayName||p.email||p.id)}</h3>
-        <span class="tag">${safe(active)}</span>
-        <p>UID: ${safe(p.id)}</p>
+        <span class="tag">${active?"Active":"Inactive"}</span>
         <p>Email: ${safe(p.email||"Not available")}</p>
-        <p>Role: ${safe(p.role||"")}</p>
+        <p>Phone: ${safe(p.phone||p.mobile||p.phoneNumber||"Not available")}</p>
+        <p>Assigned orders: <b>${assigned.length}</b> · Pending: <b>${pending}</b> · Delivered: <b>${completed}</b></p>
+        <p class="muted">UID: ${safe(p.id)}</p>
+        <p class="muted">${safe(accountNote)}</p>
+        ${p.accountExists
+          ? `<button class="${active?"danger":"primary"}" data-toggle-delivery="${safe(p.id)}" data-next-active="${active?"false":"true"}">${active?"SUSPEND PARTNER":"REACTIVATE PARTNER"}</button>`
+          : '<p class="muted">Status change unavailable until an accounts record exists. No data has been changed.</p>'}
       </div>
     `;
   }).join("");
 }
+
+$("deliveryList").addEventListener("click",async event=>{
+  const button=event.target.closest("button[data-toggle-delivery]");
+  if(!button)return;
+  const uid=button.dataset.toggleDelivery;
+  const nextActive=button.dataset.nextActive==="true";
+  const partner=deliveryData.find(p=>p.id===uid && p.accountExists);
+  if(!partner){
+    status("Delivery account record nahi mila. Koi change nahi kiya.");
+    return;
+  }
+  const label=partner.name||partner.displayName||partner.email||uid;
+  const action=nextActive?"reactivate":"suspend";
+  if(!confirm(label+" ko "+action+" karna hai? "+(nextActive
+    ?"Partner dobara login kar sakega."
+    :"Partner ka login band ho jayega. Existing orders aur account delete nahi honge.")))return;
+
+  button.disabled=true;
+  button.textContent=nextActive?"ACTIVATING...":"SUSPENDING...";
+  status("Delivery partner status update ho raha hai...");
+  try{
+    await updateDoc(doc(db,"accounts",uid),{
+      active:nextActive,
+      updatedAt:serverTimestamp()
+    });
+    status("SUCCESS: "+label+" "+(nextActive?"reactivated.":"suspended.")+" Existing orders safe hain.");
+    await loadAll();
+  }catch(error){
+    console.error("DELIVERY PARTNER STATUS ERROR",error);
+    status("UPDATE ERROR: "+(error.code||"")+" "+error.message);
+    alert("Status update nahi hua: "+error.message);
+  }finally{
+    button.disabled=false;
+  }
+});
 
 function buildCustomerDirectory(){
   const customers=new Map();
