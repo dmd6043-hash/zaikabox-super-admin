@@ -457,10 +457,19 @@ function renderRestaurants(){
     const name=valueOf(r,["name","restaurantName"])||r.id;
     const city=valueOf(r,["city","location"])||"";
     const active=r.active===true?"Active":r.active===false?"Inactive":"Not specified";
+    const approval=r.approvalStatus || (r.active===true ? "approved" : "pending");
+    const approvalLabel={approved:"Approved",pending:"Pending Review",rejected:"Rejected",suspended:"Suspended"}[approval] || "Pending Review";
     return `
       <div class="item" data-restaurant-card="${safe(r.id)}">
         <h3>${safe(name)}</h3>
-        <span class="tag">${safe(active)}</span>
+        <span class="tag">${safe(approvalLabel)} · ${safe(active)}</span>
+        <p class="muted">Approval status: <b>${safe(approvalLabel)}</b></p>
+        <div class="restaurant-controls">
+          <button class="primary" data-restaurant-action="approve" data-restaurant-id="${safe(r.id)}">APPROVE</button>
+          <button class="danger" data-restaurant-action="reject" data-restaurant-id="${safe(r.id)}">REJECT</button>
+          <button class="secondary" data-restaurant-action="suspend" data-restaurant-id="${safe(r.id)}">SUSPEND</button>
+          <button class="primary" data-restaurant-action="reactivate" data-restaurant-id="${safe(r.id)}">REACTIVATE</button>
+        </div>
         <p class="muted">Restaurant ID: <b>${safe(r.id)}</b></p>
         <label class="muted">Restaurant name</label>
         <input data-r-name value="${safe(name)}" maxlength="80">
@@ -482,6 +491,44 @@ function renderRestaurants(){
 
  
 $("restaurantList").addEventListener("click",async event=>{
+  const actionButton=event.target.closest("button[data-restaurant-action]");
+  if(actionButton){
+    const id=actionButton.dataset.restaurantId;
+    const action=actionButton.dataset.restaurantAction;
+    const restaurant=restaurantData.find(r=>r.id===id);
+    if(!restaurant)return;
+    const name=restaurant.name||restaurant.restaurantName||id;
+    const config={
+      approve:{status:"approved",active:true,label:"approve"},
+      reject:{status:"rejected",active:false,label:"reject"},
+      suspend:{status:"suspended",active:false,label:"suspend"},
+      reactivate:{status:"approved",active:true,label:"reactivate"}
+    }[action];
+    if(!config)return;
+    if(!confirm(name+" ko "+config.label+" karna hai? "+(config.active
+      ?"Restaurant customer app mein active/visible rahega."
+      :"Restaurant customer app mein inactive/hidden ho jayega. Restaurant aur menu data delete nahi hoga.")))return;
+    actionButton.disabled=true;
+    actionButton.textContent="UPDATING...";
+    try{
+      await updateDoc(doc(db,"restaurants",id),{
+        approvalStatus:config.status,
+        active:config.active,
+        reviewedAt:serverTimestamp(),
+        reviewedBy:auth.currentUser?.uid||"",
+        updatedAt:serverTimestamp()
+      });
+      status("SUCCESS: "+name+" — "+config.status+". Existing restaurant/menu data safe hai.");
+      await loadAll();
+    }catch(error){
+      console.error("RESTAURANT APPROVAL ERROR",error);
+      status("UPDATE ERROR: "+(error.code||"")+" "+error.message);
+      alert("Restaurant status update nahi hua: "+error.message);
+    }finally{
+      actionButton.disabled=false;
+    }
+    return;
+  }
   const button=event.target.closest("button[data-save-restaurant]");
   if(!button)return;
   const id=button.dataset.saveRestaurant;
@@ -526,6 +573,7 @@ $("addRestaurantBtn").onclick=async()=>{
     const button=$("addRestaurantBtn");button.disabled=true;button.textContent="ADDING...";
     await setDoc(doc(db,"restaurants",id),{
       name,city,description,foodCategory,isPureVeg:foodCategory==="Veg Only",active,
+      approvalStatus:active?"approved":"pending",
       createdAt:serverTimestamp(),updatedAt:serverTimestamp()
     });
     $("newRestaurantName").value="";$("newRestaurantCity").value="";
