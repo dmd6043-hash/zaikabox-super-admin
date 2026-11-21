@@ -279,9 +279,10 @@ button:disabled{opacity:.5}
   <section id="customersTab" class="tab hidden">
     <div class="card">
       <h2>Customer Management</h2>
-      <p class="muted">Customer records are grouped from existing orders. Guest checkout does not yet create customer login accounts.</p>
+      <p class="muted">Registered customer profiles (where available) are combined with guest/order history. Existing records are read-only here; no account or order is deleted.</p>
       <input id="customerSearch" type="search" placeholder="Search customer name or phone number">
       <div id="customerSummary" class="muted"></div>
+      <div class="grid"><div class="stat"><strong id="registeredCustomerCount">0</strong><span>Registered Profiles</span></div><div class="stat"><strong id="orderCustomerCount">0</strong><span>Customers from Orders</span></div></div>
       <div id="customerList">Loading customers...</div>
     </div>
   </section>
@@ -323,6 +324,7 @@ let restaurantData=[];
 let deliveryData=[];
 let orderData=[];
 let customerData=[];
+let customerProfileData=[];
 let loading=false;
 
 function status(message){
@@ -429,6 +431,14 @@ async function loadAll(){
     });
 
     deliveryData=[...combined.values()];
+    customerProfileData=[...regularUsers.map(p=>({...p,sourceCollection:"users"})),...accountUsers.map(p=>({...p,sourceCollection:"accounts"}))]
+      .filter(p=>["customer","user"].includes(String(p.role||"").trim().toLowerCase()))
+      .reduce((list,p)=>{
+        const index=list.findIndex(x=>x.id===p.id);
+        if(index>=0) list[index]={...list[index],...p};
+        else list.push(p);
+        return list;
+      },[]);
     orderData=orders.docs.map(d=>({id:d.id,...d.data()}));
     const savedUpiId=paymentSettings?.exists()?paymentSettings.data().upiId:"8269568200-3@ybl";
     $("platformUpiId").value=savedUpiId||"8269568200-3@ybl";
@@ -725,20 +735,23 @@ $("deliveryList").addEventListener("click",async event=>{
 function buildCustomerDirectory(){
   const customers=new Map();
 
+  customerProfileData.forEach(profile=>{
+    const name=String(valueOf(profile,["name","fullName","displayName","customerName"])||profile.email||"Registered Customer").trim();
+    const phone=String(valueOf(profile,["phone","mobile","phoneNumber","customerPhone"])||"").trim();
+    const key=phone ? "phone:"+phone : "uid:"+profile.id;
+    customers.set(key,{
+      key,name,phone,email:String(profile.email||""),
+      uid:profile.id,registered:true,orders:[],total:0,lastOrderAt:0
+    });
+  });
+
   orderData.forEach(order=>{
     const name=String(valueOf(order,["customerName","name","userName"])||"Customer").trim();
     const phone=String(valueOf(order,["customerPhone","phone","mobile"])||"").trim();
     const key=phone ? "phone:"+phone : "order:"+order.id;
 
     if(!customers.has(key)){
-      customers.set(key,{
-        key,
-        name,
-        phone,
-        orders:[],
-        total:0,
-        lastOrderAt:0
-      });
+      customers.set(key,{key,name,phone,email:"",uid:"",registered:false,orders:[],total:0,lastOrderAt:0});
     }
 
     const customer=customers.get(key);
@@ -762,7 +775,9 @@ function renderCustomers(){
   );
 
   $("customerSummary").textContent=
-    customerData.length+" customer record(s) found from "+orderData.length+" order(s).";
+    customerData.length+" unique customer record(s) · "+customerProfileData.length+" registered profile(s) · "+orderData.length+" total order(s).";
+  $("registeredCustomerCount").textContent=customerProfileData.length;
+  $("orderCustomerCount").textContent=customerData.filter(c=>c.orders.length>0).length;
 
   if(!filtered.length){
     $("customerList").innerHTML='<div class="item">No matching customers found.</div>';
@@ -799,7 +814,10 @@ function renderCustomers(){
 
     return '<div class="item">'+
       '<h3>'+safe(customer.name)+'</h3>'+
+      '<span class="tag">'+(customer.registered?'Registered account':'Guest / order record')+'</span>'+
       '<p>Phone: <b>'+safe(customer.phone||"Not provided")+'</b></p>'+
+      (customer.email?'<p>Email: '+safe(customer.email)+'</p>':'')+
+      (customer.uid?'<p class="muted">Customer UID: '+safe(customer.uid)+'</p>':'')+
       '<p>Total orders: <b>'+customer.orders.length+'</b></p>'+
       '<p>Total order value: <b>'+money(customer.total)+'</b></p>'+
       '<p class="muted">Latest order: '+safe(latest)+'</p>'+
