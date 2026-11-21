@@ -1,10 +1,10 @@
 {
-  "id": "./master-admin-install-v6",
+  "id": "/zaikabox-super-admin/zb-master-admin-v7",
   "name": "ZaikaBox Master Admin",
   "short_name": "ZB Master Admin",
   "description": "ZaikaBox Platform Master Admin Control Center",
-  "start_url": "./master-admin.html?install=master-admin-v6",
-  "scope": "./",
+  "start_url": "/zaikabox-super-admin/master-admin.html?install=zb-master-admin-v7",
+  "scope": "/zaikabox-super-admin/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#100d0a",
