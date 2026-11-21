@@ -227,6 +227,7 @@ button:disabled{opacity:.5}
         <div style="padding-top:12px">
           <input id="newRestaurantName" placeholder="Restaurant name">
           <input id="newRestaurantCity" placeholder="City">
+          <input id="newRestaurantPhone" type="tel" inputmode="numeric" maxlength="10" placeholder="Restaurant mobile number (10 digits)">
           <textarea id="newRestaurantDescription" placeholder="Short description"></textarea>
           <label class="muted">FOOD CATEGORY</label>
           <select id="newRestaurantCategory">
@@ -538,6 +539,8 @@ function renderRestaurants(){
         <input data-r-name value="${safe(name)}" maxlength="80">
         <label class="muted">City</label>
         <input data-r-city value="${safe(city)}" maxlength="80">
+        <label class="muted">Restaurant mobile number</label>
+        <input data-r-phone type="tel" inputmode="numeric" maxlength="10" value="${safe(r.phone||r.mobile||r.phoneNumber||"")}" placeholder="10 digit mobile number">
         <label class="muted">Description</label>
         <textarea data-r-description maxlength="300">${safe(r.description||"")}</textarea>
         <label class="muted">FOOD CATEGORY</label>
@@ -602,12 +605,14 @@ $("restaurantList").addEventListener("click",async event=>{
   const name=card.querySelector("[data-r-name]").value.trim();
   const city=card.querySelector("[data-r-city]").value.trim();
   const description=card.querySelector("[data-r-description]").value.trim();
+  const phone=card.querySelector("[data-r-phone]").value.trim().replace(/\D/g,"");
+  if(phone && !/^[6-9]\d{9}$/.test(phone)){status("Restaurant ka valid 10-digit mobile number daaliye.");return;}
   if(!name||!city){status("Restaurant name aur city dono zaroori hain.");return;}
   if(!confirm(name+" ki details save karni hain?"))return;
   button.disabled=true;button.textContent="SAVING...";
   try{
     await updateDoc(doc(db,"restaurants",id),{
-      name,city,description,
+      name,city,description,phone,
       foodCategory:card.querySelector("[data-r-category]").value,
       isPureVeg:card.querySelector("[data-r-category]").value==="Veg Only",
       active:card.querySelector("[data-r-active]").checked,
@@ -624,9 +629,11 @@ $("restaurantList").addEventListener("click",async event=>{
 $("addRestaurantBtn").onclick=async()=>{
   const name=$("newRestaurantName").value.trim();
   const city=$("newRestaurantCity").value.trim();
+  const phone=$("newRestaurantPhone").value.trim().replace(/\D/g,"");
   const description=$("newRestaurantDescription").value.trim();
   const foodCategory=$("newRestaurantCategory").value;
   const active=$("newRestaurantActive").checked;
+  if(phone && !/^[6-9]\d{9}$/.test(phone)){status("Restaurant ka valid 10-digit mobile number daaliye.");return;}
   if(!name||!city){status("Naya restaurant add karne ke liye name aur city bhariye.");return;}
   let id=name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,45);
   if(!id){status("Restaurant ID generate nahi ho payi. Naam badal kar try karein.");return;}
@@ -638,11 +645,11 @@ $("addRestaurantBtn").onclick=async()=>{
     if(!confirm(name+" ko ZaikaBox restaurants mein add karna hai?\\nRestaurant ID: "+id))return;
     const button=$("addRestaurantBtn");button.disabled=true;button.textContent="ADDING...";
     await setDoc(doc(db,"restaurants",id),{
-      name,city,description,foodCategory,isPureVeg:foodCategory==="Veg Only",active,
+      name,city,description,phone,foodCategory,isPureVeg:foodCategory==="Veg Only",active,
       approvalStatus:active?"approved":"pending",
       createdAt:serverTimestamp(),updatedAt:serverTimestamp()
     });
-    $("newRestaurantName").value="";$("newRestaurantCity").value="";
+    $("newRestaurantName").value="";$("newRestaurantCity").value="";$("newRestaurantPhone").value="";
     $("newRestaurantDescription").value="";
     $("newRestaurantCategory").value="Veg Only";$("newRestaurantActive").checked=true;
     status("SUCCESS: Restaurant added. Restaurant ID: "+id);
