@@ -1,0 +1,1049 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>ZaikaBox Master Admin</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.webmanifest?v=10">
+<meta name="theme-color" content="#180d2e">
+<meta name="description" content="ZaikaBox Platform Super Admin Dashboard">
+
+<!-- Android / Mobile App -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ZB Master Admin">
+<meta name="application-name" content="ZaikaBox Master Admin">
+
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  padding:16px;
+  background:#100d0a;
+  color:#fff;
+  font-family:Arial,sans-serif;
+}
+
+.wrap{max-width:1000px;margin:auto}
+header{padding:12px 0 20px}
+.logo{font-size:27px;font-weight:bold;color:#ff8a35}
+.sub{color:#aaa;font-size:12px;letter-spacing:2px}
+
+.card{
+  background:#1c1814;
+  border:1px solid #3a2b20;
+  padding:17px;
+  border-radius:16px;
+  margin:13px 0;
+}
+
+h2{font-size:18px;margin:0 0 14px}
+h3{font-size:16px;color:#ffb16f}
+
+input,select,textarea{
+  width:100%;
+  padding:14px;
+  margin:7px 0;
+  border:1px solid #49372a;
+  border-radius:10px;
+  background:#100d0a;
+  color:white;
+  font-size:15px;
+  font-family:inherit;
+}
+
+textarea{min-height:82px;resize:vertical}
+
+button{
+  border:0;
+  border-radius:10px;
+  padding:12px 15px;
+  font-weight:bold;
+  cursor:pointer;
+  margin:4px;
+}
+
+button:disabled{opacity:.5}
+.primary{background:#ff8a35;color:#160d07}
+.secondary{background:#33271d;color:white}
+.danger{background:#9e3840;color:white}
+.hidden{display:none!important}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
+.stat{
+  background:#211b16;
+  padding:16px;
+  border-radius:13px;
+  border:1px solid #443226;
+}
+
+.stat strong{
+  font-size:26px;
+  color:#ff9a4d;
+  display:block;
+}
+
+.stat span{font-size:12px;color:#aaa}
+
+.nav{
+  display:flex;
+  gap:7px;
+  overflow-x:auto;
+  padding:8px 0;
+}
+
+.nav button{
+  white-space:nowrap;
+  background:#292019;
+  color:#ddd;
+}
+
+.nav button.active{
+  background:#ff8a35;
+  color:#160d07;
+}
+
+.item{
+  background:#211b16;
+  border:1px solid #443226;
+  border-radius:13px;
+  padding:14px;
+  margin:10px 0;
+  overflow-wrap:anywhere;
+}
+
+.item p{font-size:13px;line-height:1.6;color:#ddd}
+.muted{color:#aaa;font-size:12px;line-height:1.5}
+
+.tag{
+  display:inline-block;
+  padding:5px 9px;
+  border-radius:20px;
+  background:#3b2b1e;
+  color:#ffbd87;
+  font-size:11px;
+}
+
+#status{
+  padding:12px;
+  background:#292019;
+  border-radius:10px;
+  color:#ffbd87;
+  font-size:13px;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+
+@media(min-width:650px){
+  .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+
+@media(max-width:380px){
+  body{padding:10px}
+  .logo{font-size:23px}
+  .stat{padding:12px}
+  .stat strong{font-size:22px}
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<header>
+  <div class="logo">ZAIKABOX 👑</div>
+  <div class="sub">SUPER ADMIN CONTROL CENTER</div>
+</header>
+
+<div id="status">Super Admin starting...</div>
+
+<section id="login" class="card">
+  <h2>Super Admin Login</h2>
+  <input id="email" type="email" placeholder="Admin email" autocomplete="username">
+  <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+  <button class="primary" id="loginBtn">LOGIN</button>
+</section>
+
+<section id="panel" class="hidden">
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0">Control Center</h2>
+        <p class="muted" id="adminEmail"></p>
+      </div>
+      <button class="danger" id="logoutBtn">LOGOUT</button>
+    </div>
+    <button class="secondary" id="refreshBtn">↻ REFRESH DATA</button>
+  </div>
+
+  <div class="grid">
+    <div class="stat"><strong id="totalOrders">0</strong><span>Total Orders</span></div>
+    <div class="stat"><strong id="totalRestaurants">0</strong><span>Restaurants</span></div>
+    <div class="stat"><strong id="totalDelivery">0</strong><span>Delivery Partners</span></div>
+    <div class="stat"><strong id="totalSales">₹0</strong><span>Order Sales Total</span></div>
+  </div>
+
+  <div class="nav">
+    <button class="active" data-tab="overview">Overview</button>
+    <button data-tab="restaurants">Restaurants</button>
+    <button data-tab="delivery">Delivery Partners</button>
+    <button data-tab="orders">Orders</button>
+    <button data-tab="customers">Customers</button>
+  </div>
+
+  <section id="overviewTab" class="tab">
+    <div class="card">
+      <h2>Business Overview</h2>
+      <div id="overviewDetails" class="muted">Loading...</div>
+    </div>
+  </section>
+
+  <section id="restaurantsTab" class="tab hidden">
+    <div class="card">
+      <h2>Restaurant Approval &amp; Control</h2>
+      <div class="grid">
+        <div class="stat"><strong id="pendingRestaurantCount">0</strong><span>Pending Review</span></div>
+        <div class="stat"><strong id="approvedRestaurantCount">0</strong><span>Approved</span></div>
+        <div class="stat"><strong id="rejectedRestaurantCount">0</strong><span>Rejected</span></div>
+        <div class="stat"><strong id="suspendedRestaurantCount">0</strong><span>Suspended</span></div>
+      </div>
+      <p class="muted">Add, edit, activate/deactivate restaurants. Existing restaurant IDs and menu data remain unchanged.</p>
+      <details class="item" open>
+        <summary style="cursor:pointer;color:#ffb16f;font-weight:bold">＋ ADD NEW RESTAURANT</summary>
+        <div style="padding-top:12px">
+          <input id="newRestaurantName" placeholder="Restaurant name">
+          <input id="newRestaurantCity" placeholder="City">
+          <textarea id="newRestaurantDescription" placeholder="Short description"></textarea>
+          <label class="muted">FOOD CATEGORY</label>
+          <select id="newRestaurantCategory">
+            <option value="Veg Only">Veg Only</option>
+            <option value="Non-Veg Only">Non-Veg Only</option>
+            <option value="Veg + Non-Veg">Veg + Non-Veg</option>
+          </select>
+          <label class="muted"><input id="newRestaurantActive" type="checkbox" checked style="width:auto;margin-right:8px">Restaurant active (visible to customers)</label>
+          <button class="primary" id="addRestaurantBtn">ADD RESTAURANT</button>
+        </div>
+      </details>
+      <div style="margin-top:16px">
+        <input id="restaurantSearch" type="search" placeholder="Search restaurant name, city or ID">
+        <select id="restaurantStatusFilter" aria-label="Filter restaurants by approval status">
+          <option value="all">All Restaurants</option>
+          <option value="pending">Pending Review</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="suspended">Suspended</option>
+          <option value="legacy-inactive">Inactive · Not reviewed</option>
+        </select>
+        <p class="muted" id="restaurantResultSummary">Showing all restaurants</p>
+      </div>
+      <div id="restaurantList">Loading...</div>
+    </div>
+  </section>
+
+  <section id="deliveryTab" class="tab hidden">
+    <div class="card">
+      <h2>Delivery Partner Management</h2>
+      <div id="deliveryList">Loading...</div>
+    </div>
+  </section>
+
+  <section id="ordersTab" class="tab hidden">
+    <div class="card">
+      <h2>Payments &amp; Settlements</h2>
+      <p class="muted">Customer UTR ko apne UPI/bank app mein verify karne ke baad hi Paid mark karein.</p>
+      <label for="platformUpiId">ZaikaBox UPI ID</label>
+      <input id="platformUpiId" type="text" placeholder="example@upi" value="8269568200-3@ybl">
+      <button class="primary" id="savePaymentSettings">SAVE UPI SETTINGS</button>
+      <p class="muted" id="paymentSettingsStatus">Temporary UPI ID: 8269568200-3@ybl</p>
+    </div>
+    <div class="card">
+      <h2>All Orders &amp; Payment Verification</h2>
+      <div id="orderList">Loading...</div>
+    </div>
+  </section>
+
+  <section id="customersTab" class="tab hidden">
+    <div class="card">
+      <h2>Customer Management</h2>
+      <p class="muted">Customer records are grouped from existing orders. Guest checkout does not yet create customer login accounts.</p>
+      <input id="customerSearch" type="search" placeholder="Search customer name or phone number">
+      <div id="customerSummary" class="muted"></div>
+      <div id="customerList">Loading customers...</div>
+    </div>
+  </section>
+
+</section>
+</div>
+
+<script type="module">
+import {initializeApp}
+from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+
+import {
+  getFirestore,collection,getDocs,doc,writeBatch,updateDoc,setDoc,getDoc,serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+
+import {
+  getAuth,signInWithEmailAndPassword,
+  onAuthStateChanged,signOut
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyCiG0M2iO59aJGUge5SokM8nHkC8k4SByE",
+  authDomain:"snap-kitchen-b8a73.firebaseapp.com",
+  projectId:"snap-kitchen-b8a73",
+  storageBucket:"snap-kitchen-b8a73.firebasestorage.app",
+  messagingSenderId:"1060475241392",
+  appId:"1:1060475241392:web:c3751859ecb085830b8c75",
+  measurementId:"G-KRFFRFJY5X"
+};
+
+const app=initializeApp(firebaseConfig,"ZaikaBoxSuperAdmin");
+const db=getFirestore(app);
+const auth=getAuth(app);
+
+const ADMIN_UID="RjDxrTXlLAgNfns668SgUWxBjBv1";
+const $=id=>document.getElementById(id);
+
+let restaurantData=[];
+let deliveryData=[];
+let orderData=[];
+let customerData=[];
+let loading=false;
+
+function status(message){
+  $("status").textContent=message;
+}
+
+function safe(value){
+  return String(value??"").replace(/[&<>"']/g,c=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#039;"
+  })[c]);
+}
+
+function money(value){
+  return "₹"+Number(value||0).toLocaleString("en-IN");
+}
+
+function valueOf(obj,keys){
+  for(const key of keys){
+    if(obj[key]!==undefined && obj[key]!==null)return obj[key];
+  }
+  return "";
+}
+
+$("loginBtn").onclick=async()=>{
+  const email=$("email").value.trim();
+  const password=$("password").value;
+
+  if(!email||!password){
+    status("Email aur password bhariye.");
+    return;
+  }
+
+  $("loginBtn").disabled=true;
+  status("Logging in...");
+
+  try{
+    await signInWithEmailAndPassword(auth,email,password);
+  }catch(e){
+    status("Login error: "+e.message);
+  }finally{
+    $("loginBtn").disabled=false;
+  }
+};
+
+$("password").addEventListener("keydown",e=>{
+  if(e.key==="Enter")$("loginBtn").click();
+});
+
+$("logoutBtn").onclick=()=>signOut(auth);
+
+onAuthStateChanged(auth,async user=>{
+  if(!user){
+    $("login").classList.remove("hidden");
+    $("panel").classList.add("hidden");
+    return;
+  }
+
+  if(user.uid!==ADMIN_UID){
+    status("Access denied: Super Admin UID match nahi hui.");
+    await signOut(auth);
+    return;
+  }
+
+  $("login").classList.add("hidden");
+  $("panel").classList.remove("hidden");
+  $("adminEmail").textContent="Admin: "+(user.email||"");
+  await loadAll();
+});
+
+async function loadAll(){
+  if(loading)return;
+  loading=true;
+  status("Firebase se data load ho raha hai...");
+
+  try{
+    const [restaurants,accounts,users,orders,paymentSettings]=await Promise.all([
+      getDocs(collection(db,"restaurants")),
+      getDocs(collection(db,"accounts")),
+      getDocs(collection(db,"users")),
+      getDocs(collection(db,"orders")),
+      getDoc(doc(db,"platformSettings","payments")).catch(error=>{console.warn("Payment settings not readable yet:",error);return null;})
+    ]);
+
+    restaurantData=restaurants.docs.map(d=>({id:d.id,...d.data()}));
+
+    const accountUsers=accounts.docs.map(d=>({id:d.id,...d.data()}));
+    const regularUsers=users.docs.map(d=>({id:d.id,...d.data()}));
+
+    const combined=new Map();
+
+    regularUsers.forEach(p=>{
+      if(String(p.role||"").trim().toLowerCase()==="delivery"){
+        combined.set(p.id,{...(combined.get(p.id)||{}),...p,accountExists:false});
+      }
+    });
+    accountUsers.forEach(p=>{
+      if(String(p.role||"").trim().toLowerCase()==="delivery"){
+        combined.set(p.id,{...(combined.get(p.id)||{}),...p,accountExists:true});
+      }
+    });
+
+    deliveryData=[...combined.values()];
+    orderData=orders.docs.map(d=>({id:d.id,...d.data()}));
+    const savedUpiId=paymentSettings?.exists()?paymentSettings.data().upiId:"8269568200-3@ybl";
+    $("platformUpiId").value=savedUpiId||"8269568200-3@ybl";
+    $("paymentSettingsStatus").textContent=paymentSettings?.exists()?"Saved UPI settings loaded.":"Temporary UPI ID active; save to publish it to checkout.";
+    buildCustomerDirectory();
+
+    renderAll();
+    status("SUCCESS: Super Admin data loaded.");
+
+  }catch(e){
+    console.error(e);
+    status("DATA ERROR: "+(e.code||"")+" "+e.message);
+  }finally{
+    loading=false;
+  }
+}
+
+function renderAll(){
+  $("totalOrders").textContent=orderData.length;
+  $("totalRestaurants").textContent=restaurantData.length;
+  $("totalDelivery").textContent=deliveryData.length;
+
+  const sales=orderData.reduce((sum,o)=>{
+    return sum+Number(valueOf(o,["total","totalAmount","grandTotal"])||0);
+  },0);
+
+  $("totalSales").textContent=money(sales);
+
+  const pending=orderData.filter(o=>
+    !["delivered","cancelled","rejected"].includes(
+      String(o.status||"").toLowerCase()
+    )
+  ).length;
+
+  $("overviewDetails").innerHTML=`
+    <p>Total orders: <b>${orderData.length}</b></p>
+    <p>Active/pending orders: <b>${pending}</b></p>
+    <p>Registered restaurants: <b>${restaurantData.length}</b></p>
+    <p>Delivery partner accounts: <b>${deliveryData.length}</b></p>
+    <p>Total order value: <b>${money(sales)}</b></p>
+    <p class="muted">Sales figure is the sum of available order totals, not confirmed platform revenue or commission.</p>
+  `;
+
+  renderRestaurants();
+  renderDelivery();
+  renderOrders();
+  renderCustomers();
+}
+
+function renderRestaurants(){
+  const counts={pending:0,approved:0,rejected:0,suspended:0};
+  restaurantData.forEach(r=>{
+    const s=String(r.approvalStatus||"").toLowerCase();
+    if(["pending","approved","rejected","suspended"].includes(s)) counts[s]++;
+    else if(r.active===true) counts.approved++;
+  });
+  $("pendingRestaurantCount").textContent=counts.pending;
+  $("approvedRestaurantCount").textContent=counts.approved;
+  $("rejectedRestaurantCount").textContent=counts.rejected;
+  $("suspendedRestaurantCount").textContent=counts.suspended;
+  if(!restaurantData.length){
+    $("restaurantList").innerHTML="<div class='item'>No restaurants found yet.</div>";
+    $("restaurantResultSummary").textContent="No restaurants available.";
+    return;
+  }
+  const query=String($("restaurantSearch").value||"").trim().toLowerCase();
+  const filter=$("restaurantStatusFilter").value||"all";
+  const filtered=restaurantData.filter(r=>{
+    const name=String(valueOf(r,["name","restaurantName"])||r.id).toLowerCase();
+    const city=String(valueOf(r,["city","location"])||"").toLowerCase();
+    const id=String(r.id||"").toLowerCase();
+    const category=String(r.foodCategory||"").toLowerCase();
+    const stored=String(r.approvalStatus||"").toLowerCase();
+    const approval=["approved","pending","rejected","suspended"].includes(stored)
+      ?stored:(r.active===true?"approved":"legacy-inactive");
+    const matchesQuery=!query||name.includes(query)||city.includes(query)||id.includes(query)||category.includes(query);
+    return matchesQuery&&(filter==="all"||approval===filter);
+  });
+  $("restaurantResultSummary").textContent="Showing "+filtered.length+" of "+restaurantData.length+" restaurant(s).";
+  if(!filtered.length){
+    $("restaurantList").innerHTML="<div class='item'>No matching restaurants found. Search ya status filter badal kar dekhein.</div>";
+    return;
+  }
+  $("restaurantList").innerHTML=filtered.map(r=>{
+    const name=valueOf(r,["name","restaurantName"])||r.id;
+    const city=valueOf(r,["city","location"])||"";
+    const active=r.active===true?"Active":r.active===false?"Inactive":"Not specified";
+    const storedApproval=String(r.approvalStatus||"").toLowerCase();
+    const approval=["approved","pending","rejected","suspended"].includes(storedApproval)
+      ? storedApproval
+      : (r.active===true ? "approved" : "legacy-inactive");
+    const approvalLabel={approved:"Approved",pending:"Pending Review",rejected:"Rejected",suspended:"Suspended","legacy-inactive":"Inactive · Not reviewed"}[approval] || "Status not set";
+    return `
+      <div class="item" data-restaurant-card="${safe(r.id)}">
+        <h3>${safe(name)}</h3>
+        <span class="tag">${safe(approvalLabel)} · ${safe(active)}</span>
+        <p class="muted">Approval status: <b>${safe(approvalLabel)}</b></p>
+        ${approval==="legacy-inactive" ? '<p class="muted">Legacy inactive restaurant. Purana status preserve hai; ise Pending Review count mein include nahi kiya gaya.</p>' : ''}
+        <div class="restaurant-controls">
+          <button class="primary" data-restaurant-action="approve" data-restaurant-id="${safe(r.id)}">APPROVE</button>
+          <button class="danger" data-restaurant-action="reject" data-restaurant-id="${safe(r.id)}">REJECT</button>
+          <button class="secondary" data-restaurant-action="suspend" data-restaurant-id="${safe(r.id)}">SUSPEND</button>
+          <button class="primary" data-restaurant-action="reactivate" data-restaurant-id="${safe(r.id)}">REACTIVATE</button>
+        </div>
+        <p class="muted">Restaurant ID: <b>${safe(r.id)}</b></p>
+        <label class="muted">Restaurant name</label>
+        <input data-r-name value="${safe(name)}" maxlength="80">
+        <label class="muted">City</label>
+        <input data-r-city value="${safe(city)}" maxlength="80">
+        <label class="muted">Description</label>
+        <textarea data-r-description maxlength="300">${safe(r.description||"")}</textarea>
+        <label class="muted">FOOD CATEGORY</label>
+        <select data-r-category>
+          <option value="Veg Only" ${(r.foodCategory||(r.isPureVeg===true?"Veg Only":"Non-Veg Only"))==="Veg Only"?"selected":""}>Veg Only</option>
+          <option value="Non-Veg Only" ${(r.foodCategory||(r.isPureVeg===true?"Veg Only":"Non-Veg Only"))==="Non-Veg Only"?"selected":""}>Non-Veg Only</option>
+          <option value="Veg + Non-Veg" ${r.foodCategory==="Veg + Non-Veg"?"selected":""}>Veg + Non-Veg</option>
+        </select>
+        <label class="muted"><input data-r-active type="checkbox" ${r.active===true?"checked":""} style="width:auto;margin-right:8px">Active — visible in customer app</label>
+        <button class="primary save-restaurant" data-save-restaurant="${safe(r.id)}">SAVE CHANGES</button>
+      </div>`;
+  }).join("");
+}
+
+
+$("restaurantSearch").addEventListener("input",renderRestaurants);
+$("restaurantStatusFilter").addEventListener("change",renderRestaurants);
+
+$("restaurantList").addEventListener("click",async event=>{
+  const actionButton=event.target.closest("button[data-restaurant-action]");
+  if(actionButton){
+    const id=actionButton.dataset.restaurantId;
+    const action=actionButton.dataset.restaurantAction;
+    const restaurant=restaurantData.find(r=>r.id===id);
+    if(!restaurant)return;
+    const name=restaurant.name||restaurant.restaurantName||id;
+    const config={
+      approve:{status:"approved",active:true,label:"approve"},
+      reject:{status:"rejected",active:false,label:"reject"},
+      suspend:{status:"suspended",active:false,label:"suspend"},
+      reactivate:{status:"approved",active:true,label:"reactivate"}
+    }[action];
+    if(!config)return;
+    if(!confirm(name+" ko "+config.label+" karna hai? "+(config.active
+      ?"Restaurant customer app mein active/visible rahega."
+      :"Restaurant customer app mein inactive/hidden ho jayega. Restaurant aur menu data delete nahi hoga.")))return;
+    actionButton.disabled=true;
+    actionButton.textContent="UPDATING...";
+    try{
+      await updateDoc(doc(db,"restaurants",id),{
+        approvalStatus:config.status,
+        active:config.active,
+        reviewedAt:serverTimestamp(),
+        reviewedBy:auth.currentUser?.uid||"",
+        updatedAt:serverTimestamp()
+      });
+      status("SUCCESS: "+name+" — "+config.status+". Existing restaurant/menu data safe hai.");
+      await loadAll();
+    }catch(error){
+      console.error("RESTAURANT APPROVAL ERROR",error);
+      status("UPDATE ERROR: "+(error.code||"")+" "+error.message);
+      alert("Restaurant status update nahi hua: "+error.message);
+    }finally{
+      actionButton.disabled=false;
+    }
+    return;
+  }
+  const button=event.target.closest("button[data-save-restaurant]");
+  if(!button)return;
+  const id=button.dataset.saveRestaurant;
+  const card=button.closest("[data-restaurant-card]");
+  const name=card.querySelector("[data-r-name]").value.trim();
+  const city=card.querySelector("[data-r-city]").value.trim();
+  const description=card.querySelector("[data-r-description]").value.trim();
+  if(!name||!city){status("Restaurant name aur city dono zaroori hain.");return;}
+  if(!confirm(name+" ki details save karni hain?"))return;
+  button.disabled=true;button.textContent="SAVING...";
+  try{
+    await updateDoc(doc(db,"restaurants",id),{
+      name,city,description,
+      foodCategory:card.querySelector("[data-r-category]").value,
+      isPureVeg:card.querySelector("[data-r-category]").value==="Veg Only",
+      active:card.querySelector("[data-r-active]").checked,
+      updatedAt:serverTimestamp()
+    });
+    status("SUCCESS: "+name+" updated.");
+    await loadAll();
+  }catch(error){
+    console.error(error);status("SAVE ERROR: "+(error.code||"")+" "+error.message);
+    alert("Changes save nahi hue: "+error.message);
+  }finally{button.disabled=false;button.textContent="SAVE CHANGES";}
+});
+
+$("addRestaurantBtn").onclick=async()=>{
+  const name=$("newRestaurantName").value.trim();
+  const city=$("newRestaurantCity").value.trim();
+  const description=$("newRestaurantDescription").value.trim();
+  const foodCategory=$("newRestaurantCategory").value;
+  const active=$("newRestaurantActive").checked;
+  if(!name||!city){status("Naya restaurant add karne ke liye name aur city bhariye.");return;}
+  let id=name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,45);
+  if(!id){status("Restaurant ID generate nahi ho payi. Naam badal kar try karein.");return;}
+  const base=id;let suffix=2;
+  try{
+    while((await getDoc(doc(db,"restaurants",id))).exists()){
+      id=base+"-"+suffix++;
+    }
+    if(!confirm(name+" ko ZaikaBox restaurants mein add karna hai?\\nRestaurant ID: "+id))return;
+    const button=$("addRestaurantBtn");button.disabled=true;button.textContent="ADDING...";
+    await setDoc(doc(db,"restaurants",id),{
+      name,city,description,foodCategory,isPureVeg:foodCategory==="Veg Only",active,
+      approvalStatus:active?"approved":"pending",
+      createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+    });
+    $("newRestaurantName").value="";$("newRestaurantCity").value="";
+    $("newRestaurantDescription").value="";
+    $("newRestaurantCategory").value="Veg Only";$("newRestaurantActive").checked=true;
+    status("SUCCESS: Restaurant added. Restaurant ID: "+id);
+    await loadAll();
+    button.disabled=false;button.textContent="ADD RESTAURANT";
+  }catch(error){
+    console.error(error);status("ADD ERROR: "+(error.code||"")+" "+error.message);
+    alert("Restaurant add nahi hua: "+error.message);
+    $("addRestaurantBtn").disabled=false;$("addRestaurantBtn").textContent="ADD RESTAURANT";
+  }
+};
+
+function renderDelivery(){
+  if(!deliveryData.length){
+    $("deliveryList").innerHTML="<div class='item'>No delivery partners found.</div>";
+    return;
+  }
+
+  $("deliveryList").innerHTML=deliveryData.map(p=>{
+    const active=p.active===true;
+    const assigned=orderData.filter(o=>o.assignedTo===p.id);
+    const completed=assigned.filter(o=>String(o.status||"").toLowerCase()==="delivered").length;
+    const pending=assigned.length-completed;
+    const accountNote=p.accountExists
+      ? "Login account available"
+      : "No accounts record — delivery login may not work";
+
+    return `
+      <div class="item" data-delivery-card="${safe(p.id)}">
+        <h3>${safe(p.name||p.displayName||p.email||p.id)}</h3>
+        <span class="tag">${active?"Active":"Inactive"}</span>
+        <p>Email: ${safe(p.email||"Not available")}</p>
+        <p>Phone: ${safe(p.phone||p.mobile||p.phoneNumber||"Not available")}</p>
+        <p>Assigned orders: <b>${assigned.length}</b> · Pending: <b>${pending}</b> · Delivered: <b>${completed}</b></p>
+        <p class="muted">UID: ${safe(p.id)}</p>
+        <p class="muted">${safe(accountNote)}</p>
+        ${p.accountExists
+          ? `<button class="${active?"danger":"primary"}" data-toggle-delivery="${safe(p.id)}" data-next-active="${active?"false":"true"}">${active?"SUSPEND PARTNER":"REACTIVATE PARTNER"}</button>`
+          : '<p class="muted">Status change unavailable until an accounts record exists. No data has been changed.</p>'}
+      </div>
+    `;
+  }).join("");
+}
+
+$("deliveryList").addEventListener("click",async event=>{
+  const button=event.target.closest("button[data-toggle-delivery]");
+  if(!button)return;
+  const uid=button.dataset.toggleDelivery;
+  const nextActive=button.dataset.nextActive==="true";
+  const partner=deliveryData.find(p=>p.id===uid && p.accountExists);
+  if(!partner){
+    status("Delivery account record nahi mila. Koi change nahi kiya.");
+    return;
+  }
+  const label=partner.name||partner.displayName||partner.email||uid;
+  const action=nextActive?"reactivate":"suspend";
+  if(!confirm(label+" ko "+action+" karna hai? "+(nextActive
+    ?"Partner dobara login kar sakega."
+    :"Partner ka login band ho jayega. Existing orders aur account delete nahi honge.")))return;
+
+  button.disabled=true;
+  button.textContent=nextActive?"ACTIVATING...":"SUSPENDING...";
+  status("Delivery partner status update ho raha hai...");
+  try{
+    await updateDoc(doc(db,"accounts",uid),{
+      active:nextActive,
+      updatedAt:serverTimestamp()
+    });
+    status("SUCCESS: "+label+" "+(nextActive?"reactivated.":"suspended.")+" Existing orders safe hain.");
+    await loadAll();
+  }catch(error){
+    console.error("DELIVERY PARTNER STATUS ERROR",error);
+    status("UPDATE ERROR: "+(error.code||"")+" "+error.message);
+    alert("Status update nahi hua: "+error.message);
+  }finally{
+    button.disabled=false;
+  }
+});
+
+function buildCustomerDirectory(){
+  const customers=new Map();
+
+  orderData.forEach(order=>{
+    const name=String(valueOf(order,["customerName","name","userName"])||"Customer").trim();
+    const phone=String(valueOf(order,["customerPhone","phone","mobile"])||"").trim();
+    const key=phone ? "phone:"+phone : "order:"+order.id;
+
+    if(!customers.has(key)){
+      customers.set(key,{
+        key,
+        name,
+        phone,
+        orders:[],
+        total:0,
+        lastOrderAt:0
+      });
+    }
+
+    const customer=customers.get(key);
+    customer.orders.push(order);
+    customer.total+=Number(valueOf(order,["total","totalAmount","grandTotal"])||0);
+    const time=order.createdAt?.toMillis?.()||0;
+    if(time>customer.lastOrderAt) customer.lastOrderAt=time;
+    if(name && name!=="Customer") customer.name=name;
+  });
+
+  customerData=[...customers.values()].sort((a,b)=>
+    b.lastOrderAt-a.lastOrderAt
+  );
+}
+
+function renderCustomers(){
+  const query=String($("customerSearch")?.value||"").trim().toLowerCase();
+  const filtered=customerData.filter(customer=>
+    customer.name.toLowerCase().includes(query) ||
+    customer.phone.toLowerCase().includes(query)
+  );
+
+  $("customerSummary").textContent=
+    customerData.length+" customer record(s) found from "+orderData.length+" order(s).";
+
+  if(!filtered.length){
+    $("customerList").innerHTML='<div class="item">No matching customers found.</div>';
+    return;
+  }
+
+  $("customerList").innerHTML=filtered.map(customer=>{
+    const latest=customer.lastOrderAt
+      ?new Date(customer.lastOrderAt).toLocaleString("en-IN")
+      :"Time unavailable";
+
+    const history=[...customer.orders].sort((a,b)=>
+      (b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0)
+    ).map(order=>{
+      const date=order.createdAt?.toDate
+        ?order.createdAt.toDate().toLocaleString("en-IN")
+        :"Time unavailable";
+      const items=Array.isArray(order.items)
+        ?order.items.map(item=>{
+          if(typeof item==="string") return safe(item);
+          return safe(item.name||item.title||"Item")+" × "+safe(item.quantity||item.qty||1);
+        }).join(", ")
+        :"Items unavailable";
+
+      return '<div class="item">'+
+        '<b>Order #'+safe(order.id.slice(-8))+'</b>'+
+        '<p>Status: '+safe(order.status||"New")+'</p>'+
+        '<p>Restaurant: '+safe(order.restaurantName||order.restaurantId||"Not specified")+'</p>'+
+        '<p>Items: '+items+'</p>'+
+        '<p>Order value: '+money(valueOf(order,["total","totalAmount","grandTotal"]))+'</p>'+
+        '<p class="muted">'+safe(date)+'</p>'+
+        '</div>';
+    }).join("");
+
+    return '<div class="item">'+
+      '<h3>'+safe(customer.name)+'</h3>'+
+      '<p>Phone: <b>'+safe(customer.phone||"Not provided")+'</b></p>'+
+      '<p>Total orders: <b>'+customer.orders.length+'</b></p>'+
+      '<p>Total order value: <b>'+money(customer.total)+'</b></p>'+
+      '<p class="muted">Latest order: '+safe(latest)+'</p>'+
+      '<details><summary style="cursor:pointer;color:#ffb16f;padding:8px 0">VIEW ORDER HISTORY</summary>'+
+      history+'</details>'+
+      '</div>';
+  }).join("");
+}
+
+$("customerSearch").addEventListener("input",renderCustomers);
+
+function renderOrders(){
+  if(!orderData.length){
+    $("orderList").innerHTML="No orders found.";
+    return;
+  }
+  const statuses=["New","Accepted","Rejected","Preparing","Ready for Pickup","Out for Delivery","Picked Up","Delivered"];
+  const sorted=[...orderData].sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+  $("orderList").innerHTML=sorted.map(o=>{
+    const name=valueOf(o,["customerName","name","userName"])||"Customer";
+    const total=valueOf(o,["total","totalAmount","grandTotal"]);
+    const date=o.createdAt?.toDate?o.createdAt.toDate().toLocaleString("en-IN"):"Time unavailable";
+    const current=String(o.status||"New");
+    const paymentStatus=String(o.paymentStatus||"Legacy / Not recorded");
+    const pending=o.paymentStatus==="Pending" && current==="Payment Pending";
+    const failed=o.paymentStatus==="Failed" || current==="Payment Failed";
+    const paymentPanel=pending
+      ? "<div style=\"border:1px solid #ffb16f;border-radius:12px;padding:12px;margin:12px 0\">"+
+        "<b>PAYMENT VERIFICATION REQUIRED</b>"+
+        "<p>Method: "+safe(o.paymentMethod||"UPI")+"</p>"+
+        "<p>Payment status: "+safe(paymentStatus)+"</p>"+
+        "<p style=\"word-break:break-all\">UTR / Transaction ID: <b>"+safe(o.utr||"Not submitted")+"</b></p>"+
+        "<button class=\"primary\" data-payment-action=\"paid\" data-payment-order=\""+safe(o.id)+"\">VERIFY &amp; MARK PAID</button>"+
+        "<button class=\"danger\" data-payment-action=\"failed\" data-payment-order=\""+safe(o.id)+"\">MARK FAILED</button>"+
+        "<p class=\"muted\">Paid tabhi karein jab bank/UPI app mein actual credit confirm ho.</p>"+
+        "</div>"
+      : "<p>Payment status: <b>"+safe(paymentStatus)+"</b></p>"+
+        (o.utr?"<p>UTR: "+safe(o.utr)+"</p>":"");
+    if(pending||failed){
+      return "<div class=\"item\">"+
+        "<h3>Order #"+safe(o.id.slice(-8))+"</h3>"+
+        "<span class=\"tag\">"+safe(current)+"</span>"+
+        "<p>Customer: "+safe(name)+"</p>"+
+        "<p>Restaurant: "+safe(o.restaurantName||o.restaurantId||"Not specified")+"</p>"+
+        "<p>Order type: "+safe(o.orderType||"Not specified")+"</p>"+
+        "<p>Amount: "+money(total)+"</p>"+paymentPanel+
+        "<p class=\"muted\">"+safe(date)+"</p>"+
+        "</div>";
+    }
+    const options=[...new Set([...statuses,current])].map(s=>"<option value=\""+safe(s)+"\" "+(s===current?"selected":"")+">"+safe(s)+"</option>").join("");
+    return "<div class=\"item\">"+
+      "<h3>Order #"+safe(o.id.slice(-8))+"</h3>"+
+      "<span class=\"tag\">"+safe(current)+"</span>"+
+      "<p>Customer: "+safe(name)+"</p>"+
+      "<p>Restaurant: "+safe(o.restaurantName||o.restaurantId||"Not specified")+"</p>"+
+      "<p>Order type: "+safe(o.orderType||"Not specified")+"</p>"+
+      "<p>Amount: "+money(total)+"</p>"+paymentPanel+
+      "<p>Delivery UID: "+safe(o.assignedTo||"Not assigned")+"</p>"+
+      "<label style=\"display:block;font-size:12px;color:#ffbd87;margin:8px 0\">Assign delivery partner</label>"+
+      "<select class=\"delivery-assignee\" data-assignee-order=\""+safe(o.id)+"\" style=\"width:100%;padding:12px;border-radius:10px;background:#100d0a;color:white;border:1px solid #49372a\">"+
+      "<option value=\"\">"+(o.assignedTo?"Keep current assignment":"Select active delivery partner")+"</option>"+
+      deliveryData.filter(p=>p.active===true && String(p.role||"").trim().toLowerCase()==="delivery").map(p=>
+        "<option value=\""+safe(p.id)+"\" "+(p.id===o.assignedTo?"selected":"")+">"+
+        safe(p.name||p.displayName||p.email||p.id)+(p.email?" — "+safe(p.email):"")+"</option>"
+      ).join("")+
+      "</select>"+
+      "<button class=\"primary assign-delivery\" data-assign-order=\""+safe(o.id)+"\">SAVE ASSIGNMENT</button>"+
+      "<p class=\"muted\">Only active delivery accounts are listed.</p>"+
+      "<p class=\"muted\">"+safe(date)+"</p>"+
+      "<label style=\"display:block;font-size:12px;color:#ffbd87;margin:8px 0\">Update order status</label>"+
+      "<select class=\"order-status-select\" data-order-status=\""+safe(o.id)+"\" style=\"width:100%;padding:12px;border-radius:10px;background:#100d0a;color:white;border:1px solid #49372a\">"+options+"</select>"+
+      "<button class=\"primary save-order-status\" data-save-order=\""+safe(o.id)+"\">SAVE STATUS</button>"+
+      "</div>";
+  }).join("");
+}
+
+$("orderList").addEventListener("click",async event=>{
+  const button=event.target.closest("button[data-payment-action]");
+  if(!button)return;
+  const orderId=button.dataset.paymentOrder;
+  const action=button.dataset.paymentAction;
+  const order=orderData.find(item=>item.id===orderId);
+  if(!order||order.paymentStatus!=="Pending")return;
+  if(action==="paid"&&!confirm("UPI/bank app mein UTR "+(order.utr||"")+" se ₹"+Number(order.total||0)+" ka payment credit verify kar liya? Order ko Paid karke restaurant ko bhejna hai?"))return;
+  if(action==="failed"&&!confirm("Is payment ko Failed mark karna hai?"))return;
+  button.disabled=true;
+  button.textContent=action==="paid"?"VERIFYING...":"UPDATING...";
+  try{
+    const batch=writeBatch(db);
+    const nextPaymentStatus=action==="paid"?"Paid":"Failed";
+    const nextOrderStatus=action==="paid"?"New":"Payment Failed";
+    batch.update(doc(db,"orders",orderId),{
+      paymentStatus:nextPaymentStatus,
+      status:nextOrderStatus,
+      paymentVerifiedAt:serverTimestamp(),
+      paymentVerifiedBy:auth.currentUser.uid,
+      updatedAt:serverTimestamp()
+    });
+    if(order.trackingCode){
+      const code=String(order.trackingCode).toUpperCase().replace(/[\s-]/g,"");
+      batch.update(doc(db,"orderTracking",code),{status:nextOrderStatus});
+    }
+    await batch.commit();
+    status(action==="paid"?"SUCCESS: Payment verified. Order released to restaurant.":"Payment marked Failed.");
+    await loadAll();
+  }catch(error){
+    console.error("PAYMENT VERIFICATION ERROR",error);
+    status("PAYMENT ERROR: "+(error.code||"")+" "+error.message);
+    alert("Payment status update nahi hua: "+error.message);
+  }finally{
+    button.disabled=false;
+  }
+});
+
+$("savePaymentSettings").addEventListener("click",async()=>{
+  const upiId=$("platformUpiId").value.trim();
+  if(!/^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$/.test(upiId)){
+    status("Valid UPI ID enter kijiye, jaise name@bank.");
+    $("platformUpiId").focus();
+    return;
+  }
+  const button=$("savePaymentSettings");
+  button.disabled=true;
+  button.textContent="SAVING...";
+  try{
+    await setDoc(doc(db,"platformSettings","payments"),{
+      upiId,
+      accountName:"ZaikaBox",
+      onlinePaymentsEnabled:true,
+      updatedAt:serverTimestamp(),
+      updatedBy:auth.currentUser.uid
+    },{merge:true});
+    $("paymentSettingsStatus").textContent="UPI ID saved. New customer checkouts will use this ID.";
+    status("SUCCESS: UPI settings saved.");
+  }catch(error){
+    console.error("PAYMENT SETTINGS ERROR",error);
+    status("SETTINGS ERROR: "+(error.code||"")+" "+error.message);
+    alert("UPI settings save nahi hui: "+error.message);
+  }finally{
+    button.disabled=false;
+    button.textContent="SAVE UPI SETTINGS";
+  }
+});
+
+$("orderList").addEventListener("click",async event=>{
+  const button=event.target.closest("button[data-save-order]");
+  if(!button)return;
+  const orderId=button.dataset.saveOrder;
+  const select=$("orderList").querySelector("select[data-order-status=\""+orderId+"\"]");
+  const newStatus=select?.value;
+  const order=orderData.find(item=>item.id===orderId);
+  if(!order||!newStatus)return;
+  if(String(order.status||"New")===newStatus){
+    status("Order already has this status.");
+    return;
+  }
+  if(!confirm("Order #"+orderId.slice(-8)+" status \""+newStatus+"\" set karna hai?"))return;
+  button.disabled=true;
+  button.textContent="UPDATING...";
+  status("Updating order status...");
+  try{
+    const batch=writeBatch(db);
+    batch.update(doc(db,"orders",orderId),{status:newStatus});
+    if(order.trackingCode){
+      const code=String(order.trackingCode).toUpperCase().replace(/[\s-]/g,"");
+      batch.update(doc(db,"orderTracking",code),{status:newStatus});
+    }
+    await batch.commit();
+    status("SUCCESS: Order status updated to "+newStatus+".");
+  }catch(error){
+    console.error("ORDER STATUS UPDATE ERROR",error);
+    status("UPDATE ERROR: "+(error.code||"")+" "+error.message);
+    alert("Status update nahi hua: "+error.message);
+  }finally{
+    button.disabled=false;
+    button.textContent="SAVE STATUS";
+  }
+});
+
+$("orderList").addEventListener("click",async event=>{
+  const button=event.target.closest("button[data-assign-order]");
+  if(!button)return;
+  const orderId=button.dataset.assignOrder;
+  const select=$("orderList").querySelector("select[data-assignee-order=\""+orderId+"\"]");
+  const uid=select?.value;
+  if(!uid){
+    status("Active delivery partner select kijiye.");
+    return;
+  }
+  const partner=deliveryData.find(p=>p.id===uid && p.active===true && String(p.role||"").trim().toLowerCase()==="delivery");
+  const order=orderData.find(item=>item.id===orderId);
+  if(!partner||!order){
+    status("Selected delivery partner ya order nahi mila. Refresh kijiye.");
+    return;
+  }
+  if(!confirm("Order #"+orderId.slice(-8)+" ko "+(partner.name||partner.displayName||partner.email||uid)+" assign karna hai?"))return;
+  button.disabled=true;
+  button.textContent="ASSIGNING...";
+  status("Delivery partner assign ho raha hai...");
+  try{
+    await updateDoc(doc(db,"orders",orderId),{
+      assignedTo:uid,
+      assignedToEmail:partner.email||"",
+      assignedAt:serverTimestamp()
+    });
+    status("SUCCESS: Delivery partner assigned.");
+    await loadAll();
+  }catch(error){
+    console.error("DELIVERY ASSIGNMENT ERROR",error);
+    status("ASSIGNMENT ERROR: "+(error.code||"")+" "+error.message);
+    alert("Assignment save nahi hua: "+error.message);
+  }finally{
+    button.disabled=false;
+    button.textContent="SAVE ASSIGNMENT";
+  }
+});
+
+document.querySelectorAll("[data-tab]").forEach(button=>{
+  button.onclick=()=>{
+    document.querySelectorAll("[data-tab]").forEach(b=>b.classList.remove("active"));
+    button.classList.add("active");
+
+    document.querySelectorAll(".tab").forEach(t=>t.classList.add("hidden"));
+    $(button.dataset.tab+"Tab").classList.remove("hidden");
+  };
+});
+
+$("refreshBtn").onclick=loadAll;
+</script>
+
+<!-- Service Worker Registration -->
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"})
+      .then(registration => {
+        console.log("ZaikaBox Super Admin SW registered:", registration.scope);
+      })
+      .catch(error => {
+        console.error("ZaikaBox Super Admin SW registration failed:", error);
+      });
+  });
+}
+</script>
+
+</body>
+</html>
