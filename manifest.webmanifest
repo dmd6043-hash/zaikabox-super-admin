@@ -1,9 +1,9 @@
 {
-  "id": "./?app=master-admin-v3",
+  "id": "./master-admin.html",
   "name": "ZaikaBox Master Admin",
   "short_name": "ZB Master Admin",
   "description": "ZaikaBox Platform Master Admin Control Center",
-  "start_url": "./index.html?app=master-admin-v3",
+  "start_url": "./master-admin.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
