@@ -5,18 +5,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>ZaikaBox Super Admin Control Center</title>
+<title>ZaikaBox Master Admin</title>
 
 <!-- PWA -->
-<link rel="manifest" href="./manifest.webmanifest?v=8">
+<link rel="manifest" href="./manifest.webmanifest?v=9">
 <meta name="theme-color" content="#180d2e">
 <meta name="description" content="ZaikaBox Platform Super Admin Dashboard">
 
 <!-- Android / Mobile App -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="ZB Super Admin">
-<meta name="application-name" content="ZaikaBox Super Admin Control Center">
+<meta name="apple-mobile-web-app-title" content="ZB Master Admin">
+<meta name="application-name" content="ZaikaBox Master Admin">
 
 <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -1034,7 +1034,7 @@ $("refreshBtn").onclick=loadAll;
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js")
+    navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"})
       .then(registration => {
         console.log("ZaikaBox Super Admin SW registered:", registration.scope);
       })
