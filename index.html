@@ -251,6 +251,7 @@ button:disabled{opacity:.5}
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
           <option value="suspended">Suspended</option>
+          <option value="deleted">Archived</option>
           <option value="legacy-inactive">Inactive · Not reviewed</option>
         </select>
         <p class="muted" id="restaurantResultSummary">Showing all restaurants</p>
@@ -668,7 +669,7 @@ function renderRestaurants(){
     const id=String(r.id||"").toLowerCase();
     const category=String(r.foodCategory||"").toLowerCase();
     const stored=String(r.approvalStatus||"").toLowerCase();
-    const approval=["approved","pending","rejected","suspended"].includes(stored)
+    const approval=["approved","pending","rejected","suspended","deleted"].includes(stored)
       ?stored:(r.active===true?"approved":"legacy-inactive");
     const matchesQuery=!query||name.includes(query)||city.includes(query)||id.includes(query)||category.includes(query);
     return matchesQuery&&(filter==="all"||approval===filter);
@@ -683,10 +684,10 @@ function renderRestaurants(){
     const city=valueOf(r,["city","location"])||"";
     const active=r.active===true?"Active":r.active===false?"Inactive":"Not specified";
     const storedApproval=String(r.approvalStatus||"").toLowerCase();
-    const approval=["approved","pending","rejected","suspended"].includes(storedApproval)
+    const approval=["approved","pending","rejected","suspended","deleted"].includes(storedApproval)
       ? storedApproval
       : (r.active===true ? "approved" : "legacy-inactive");
-    const approvalLabel={approved:"Approved",pending:"Pending Review",rejected:"Rejected",suspended:"Suspended","legacy-inactive":"Inactive · Not reviewed"}[approval] || "Status not set";
+    const approvalLabel={approved:"Approved",pending:"Pending Review",rejected:"Rejected",suspended:"Suspended",deleted:"Archived","legacy-inactive":"Inactive · Not reviewed"}[approval] || "Status not set";
     return `
       <div class="item" data-restaurant-card="${safe(r.id)}">
         <h3>${safe(name)}</h3>
@@ -698,6 +699,7 @@ function renderRestaurants(){
           <button class="danger" data-restaurant-action="reject" data-restaurant-id="${safe(r.id)}">REJECT</button>
           <button class="secondary" data-restaurant-action="suspend" data-restaurant-id="${safe(r.id)}">SUSPEND</button>
           <button class="primary" data-restaurant-action="reactivate" data-restaurant-id="${safe(r.id)}">REACTIVATE</button>
+          <button class="danger" data-restaurant-action="delete" data-restaurant-id="${safe(r.id)}">DELETE / ARCHIVE</button>
         </div>
         <p class="muted">Restaurant ID: <b>${safe(r.id)}</b></p>
         <label class="muted">Restaurant name</label>
@@ -734,23 +736,27 @@ $("restaurantList").addEventListener("click",async event=>{
       approve:{status:"approved",active:true,label:"approve"},
       reject:{status:"rejected",active:false,label:"reject"},
       suspend:{status:"suspended",active:false,label:"suspend"},
-      reactivate:{status:"approved",active:true,label:"reactivate"}
+      reactivate:{status:"approved",active:true,label:"reactivate",deleted:false},
+      delete:{status:"deleted",active:false,label:"archive",deleted:true}
     }[action];
     if(!config)return;
-    if(!confirm(name+" ko "+config.label+" karna hai? "+(config.active
-      ?"Restaurant customer app mein active/visible rahega."
-      :"Restaurant customer app mein inactive/hidden ho jayega. Restaurant aur menu data delete nahi hoga.")))return;
+    if(!confirm(name+" ko "+config.label+" karna hai? "+(action==="delete"
+      ?"Restaurant customer app se hide ho jayega. Restaurant profile archive hogi; menu subcollection, orders aur history Firestore mein safe rahenge. Isse REACTIVATE se wapas laa sakte hain."
+      :config.active
+        ?"Restaurant customer app mein active/visible rahega."
+        :"Restaurant customer app mein inactive/hidden ho jayega. Restaurant aur menu data delete nahi hoga.")))return;
     actionButton.disabled=true;
     actionButton.textContent="UPDATING...";
     try{
       await updateDoc(doc(db,"restaurants",id),{
         approvalStatus:config.status,
         active:config.active,
+        ...(config.deleted===undefined?{}:{deleted:config.deleted}),
         reviewedAt:serverTimestamp(),
         reviewedBy:auth.currentUser?.uid||"",
         updatedAt:serverTimestamp()
       });
-      status("SUCCESS: "+name+" — "+config.status+". Existing restaurant/menu data safe hai.");
+      status("SUCCESS: "+name+" — "+(action==="delete"?"archived":config.status)+". Menu, orders aur history safe hain.");
       await loadAll();
     }catch(error){
       console.error("RESTAURANT APPROVAL ERROR",error);
