@@ -549,7 +549,7 @@ function renderRestaurantApplications(){
     </div>`;
   }).join("");
 }
-host.onclick=async event=>{
+$("restaurantApplicationsList").onclick=async event=>{
   const button=event.target.closest("button[data-app-action]");
   if(!button)return;
   const card=button.closest("[data-application-id]");
