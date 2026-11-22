@@ -1153,6 +1153,31 @@ document.querySelectorAll("[data-tab]").forEach(button=>{
 $("refreshBtn").onclick=loadAll;
 </script>
 
+<!-- Independent navigation fallback: keeps dashboard tabs usable if a module-script handler fails. -->
+<script>
+(function(){
+  function bindZaikaTabs(){
+    var buttons=document.querySelectorAll(".nav [data-tab]");
+    if(!buttons.length)return;
+    buttons.forEach(function(button){
+      button.addEventListener("click",function(event){
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        var target=document.getElementById(button.getAttribute("data-tab")+"Tab");
+        if(!target)return;
+        buttons.forEach(function(item){item.classList.remove("active");});
+        button.classList.add("active");
+        document.querySelectorAll("section.tab").forEach(function(section){section.classList.add("hidden");});
+        target.classList.remove("hidden");
+        target.scrollIntoView({behavior:"smooth",block:"start"});
+      },true);
+    });
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bindZaikaTabs);
+  else bindZaikaTabs();
+})();
+</script>
+
 <!-- Service Worker Registration -->
 <script>
 if ("serviceWorker" in navigator) {
