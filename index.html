@@ -557,7 +557,7 @@ host.onclick=async event=>{
       const reason=read("correctionReason");
       if(!reason){status("Pehle correction ka reason likhiye.");return;}
       if(!application.email){status("Applicant email record mein nahi hai.");return;}
-      const mailto="mailto:"+encodeURIComponent(application.email)
+      const mailto="mailto:"+application.email
         +"?subject="+encodeURIComponent("ZaikaBox registration correction required")
         +"&body="+encodeURIComponent("Namaste "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya Partner App mein login karke Edit Registration karein aur dobara submit karein.\n\nZaikaBox Team");
       if(action==="request-correction"){
