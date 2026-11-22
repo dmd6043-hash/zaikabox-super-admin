@@ -502,9 +502,9 @@ function renderRestaurantApplications(){
   if(!host)return;
   if(!restaurantApplications.length){host.innerHTML="<p class='muted'>No restaurant applications found.</p>";return;}
   host.innerHTML=restaurantApplications.slice().sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0)).map(a=>{
-    const id=safe(a.id);
-    const docNames=a.documents||{};
-    const correction=safe(a.correctionReason||"");
+    const id=safe(a.id), docs=a.documents||{}, correction=safe(a.correctionReason||"");
+    const approved=String(a.status||"").toLowerCase()==="approved";
+    const canApprove=String(a.status||"").toLowerCase()!=="approved" && a.fssaiProvided===true && !!String(a.fssaiNumber||"").trim() && !!String(docs.fssai||"").trim();
     return `
     <div class="item" data-application-id="${id}">
       <h3>${safe(a.restaurantName||"Restaurant application")}</h3>
@@ -513,9 +513,14 @@ function renderRestaurantApplications(){
       <p>Email: ${safe(a.email||"—")}</p><p>Address: ${safe(a.address||"—")}</p>
       <p>City: ${safe(a.city||"—")}</p><p>Business type: ${safe(a.businessType||"—")}</p>
       <p>Food category: ${safe(a.foodType||"—")}</p><p>FSSAI number: ${safe(a.fssaiNumber||"—")}</p>
-      <p>Documents listed: Aadhaar ${safe(docNames.ownerId||"—")} · PAN ${safe(docNames.pan||"—")} · FSSAI ${safe(docNames.fssai||"—")} · Address proof ${safe(docNames.addressProof||"—")} · Shop photo ${safe(docNames.shopPhoto||"—")}</p>
+      <p>Documents listed: Aadhaar ${safe(docs.ownerId||"—")} · PAN ${safe(docs.pan||"—")} · FSSAI ${safe(docs.fssai||"—")} · Address proof ${safe(docs.addressProof||"—")} · Shop photo ${safe(docs.shopPhoto||"—")}</p>
       ${correction?`<p><b>Last correction reason:</b> ${correction}</p>`:""}
-      <p class="muted">Files are not stored in Firebase; verify WhatsApp attachments separately. Application ID: ${id}</p>
+      <p class="muted">Documents ke original files WhatsApp par manually verify karein. Application ID: ${id}</p>
+      ${approved?`<p class="tag">Approved · Restaurant ID: ${safe(a.restaurantId||"Created")}</p>`:`
+      <div style="margin:12px 0">
+        <button class="primary" type="button" data-app-action="approve" ${canApprove?"":"disabled"}>APPROVE & CREATE PARTNER ACCOUNT</button>
+        ${canApprove?"":'<p class="muted">Approval ke liye FSSAI number aur certificate filename application mein hona zaroori hai. Original certificate verify karein.</p>'}
+      </div>`}
       <details style="margin-top:12px">
         <summary style="cursor:pointer;color:#ffb16f;font-weight:bold">✎ EDIT APPLICATION DETAILS</summary>
         <div style="padding-top:10px">
@@ -531,45 +536,89 @@ function renderRestaurantApplications(){
             <option ${a.foodType==="Both Veg & Non-Veg"?"selected":""}>Both Veg & Non-Veg</option>
           </select>
           <label>FSSAI number</label><input data-field="fssaiNumber" value="${safe(a.fssaiNumber||"")}" maxlength="30">
-          <button class="primary" type="button" data-action="save-edit">SAVE ADMIN EDIT</button>
+          <button class="primary" type="button" data-app-action="save-edit">SAVE ADMIN EDIT</button>
         </div>
       </details>
       <div style="margin-top:12px">
         <label>Correction reason for applicant</label>
         <textarea data-field="correctionReason" maxlength="1000" placeholder="Example: FSSAI certificate clear nahi hai. Kripya clear photo upload karein.">${correction}</textarea>
-        <button class="secondary" type="button" data-action="email">OPEN EMAIL WITH REASON</button>
-        <button class="primary" type="button" data-action="request-correction">REQUEST CORRECTION</button>
+        <button class="secondary" type="button" data-app-action="email">OPEN EMAIL WITH REASON</button>
+        <button class="primary" type="button" data-app-action="request-correction">REQUEST CORRECTION</button>
       </div>
     </div>`;
   }).join("");
 }
 host.onclick=async event=>{
-  const button=event.target.closest("button[data-action]");
+  const button=event.target.closest("button[data-app-action]");
   if(!button)return;
   const card=button.closest("[data-application-id]");
   const id=card?.dataset.applicationId;
   const application=restaurantApplications.find(item=>item.id===id);
   if(!application)return;
   const read=field=>card.querySelector('[data-field="'+field+'"]')?.value?.trim()||"";
-  const action=button.dataset.action;
+  const action=button.dataset.appAction;
+  let mailWindow=null;
   try{
     if(action==="email"||action==="request-correction"){
       const reason=read("correctionReason");
       if(!reason){status("Pehle correction ka reason likhiye.");return;}
-      if(!application.email){status("Applicant email record mein nahi hai.");return;}
-      const mailto="mailto:"+application.email
-        +"?subject="+encodeURIComponent("ZaikaBox registration correction required")
-        +"&body="+encodeURIComponent("Namaste "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya Partner App mein login karke Edit Registration karein aur dobara submit karein.\n\nZaikaBox Team");
-      if(action==="request-correction"){
-        button.disabled=true;
-        await updateDoc(doc(db,"restaurantApplications",id),{
-          status:"Correction Required",correctionReason:reason,
-          correctionRequestedAt:serverTimestamp(),updatedAt:serverTimestamp()
-        });
-        await loadAll();
-        status("Correction status save ho gaya. Email compose window khol rahe hain; Send aapko dabana hoga.");
+      if(!application.email){status("Applicant email record mein nahi hai. Application mein email verify karein.");return;}
+      const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Namaste "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya Partner App mein login karke Edit Registration karein aur dobara submit karein.\n\nZaikaBox Team");
+      if(action==="email"){
+        window.location.href=mailto;
+        status("Email app open karne ki request bheji gayi. Agar app na khule to phone mein email app configured karein.");
+        return;
       }
-      window.location.href=mailto;
+      mailWindow=window.open("about:blank","_blank");
+      button.disabled=true;
+      await updateDoc(doc(db,"restaurantApplications",id),{
+        status:"Correction Required",correctionReason:reason,
+        correctionRequestedAt:serverTimestamp(),updatedAt:serverTimestamp()
+      });
+      if(mailWindow&&!mailWindow.closed)mailWindow.location.href=mailto;
+      else window.location.href=mailto;
+      await loadAll();
+      status("Correction Required save ho gaya. Email draft khulega; Send manually dabana hoga.");
+      return;
+    }
+    if(action==="approve"){
+      if(!application.fssaiProvided||!String(application.fssaiNumber||"").trim()||!String(application.documents?.fssai||"").trim()){
+        status("FSSAI number aur certificate details verify hone ke baad hi approve karein.");return;
+      }
+      if(String(application.status||"").toLowerCase()==="approved"){status("Application pehle se approved hai.");return;}
+      if(!confirm((application.restaurantName||"Restaurant")+" ko approve karke partner account banana hai? Original documents pehle verify karein."))return;
+      button.disabled=true;button.textContent="APPROVING...";
+      const restaurantId="zb-"+id.slice(0,12);
+      const restaurantRef=doc(db,"restaurants",restaurantId);
+      const accountRef=doc(db,"accounts",id);
+      const [existingRestaurant,existingAccount]=await Promise.all([getDoc(restaurantRef),getDoc(accountRef)]);
+      if(existingRestaurant.exists()||existingAccount.exists()){
+        throw new Error("Restaurant ID ya partner account pehle se maujood hai. Duplicate creation rok di gayi; Super Admin se records check karein.");
+      }
+      const foodCategory=application.foodType==="Pure Veg"?"Veg Only":application.foodType==="Non-Veg"?"Non-Veg Only":"Veg + Non-Veg";
+      const batch=writeBatch(db);
+      batch.set(restaurantRef,{
+        name:application.restaurantName,restaurantName:application.restaurantName,
+        ownerName:application.ownerName,ownerUid:id,ownerEmail:application.email||"",
+        phone:application.phone||"",address:application.address||"",city:application.city||"",
+        description:application.businessType||"Local restaurant",
+        foodCategory,isPureVeg:application.foodType==="Pure Veg",
+        fssaiNumber:application.fssaiNumber,active:true,approvalStatus:"approved",
+        bankStatus:application.bankStatus||"Not Submitted",payoutActive:false,
+        createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+      });
+      batch.set(accountRef,{
+        role:"restaurant",active:true,restaurantId,
+        name:application.ownerName||"",email:application.email||"",phone:application.phone||"",
+        createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+      });
+      batch.update(doc(db,"restaurantApplications",id),{
+        status:"Approved",restaurantId,approvedAt:serverTimestamp(),approvedBy:auth.currentUser?.uid||"",updatedAt:serverTimestamp()
+      });
+      await batch.commit();
+      status("SUCCESS: Application approved. Restaurant ID "+restaurantId+" aur partner account create ho gaya. Payout bank verification ke baad hi activate hoga.");
+      await loadAll();
+      return;
     }
     if(action==="save-edit"){
       const ownerName=read("ownerName"),phone=read("phone"),restaurantName=read("restaurantName"),
@@ -587,9 +636,11 @@ host.onclick=async event=>{
       status("Application details admin side se update ho gayi.");
     }
   }catch(error){
-    console.error(error);
-    status("Application update error: "+(error.code||"")+" "+error.message);
+    console.error("APPLICATION ACTION ERROR",error);
+    if(mailWindow&&!mailWindow.closed)mailWindow.close();
+    status("Application action error: "+(error.code||"")+" "+error.message);
     button.disabled=false;
+    if(action==="approve")button.textContent="APPROVE & CREATE PARTNER ACCOUNT";
   }
 };
 
