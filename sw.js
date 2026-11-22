@@ -1,11 +1,11 @@
 
-const CACHE_NAME = "zaikabox-master-admin-v7";
+const CACHE_NAME = "zaikabox-master-admin-v8";
 
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
   "./master-admin.html",
-  "./manifest.webmanifest?v=13",
+  "./manifest.webmanifest?v=14",
   "./icon-192.png",
   "./icon-512.png"
 ];
@@ -25,7 +25,7 @@ self.addEventListener("activate", event => {
 
       await Promise.all(
         keys
-          .filter(key => key.startsWith("zaikabox-super-admin-") && key !== CACHE_NAME)
+          .filter(key => key.startsWith("zaikabox-master-admin-") && key !== CACHE_NAME)
           .map(key => caches.delete(key))
       );
 
