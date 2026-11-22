@@ -1,9 +1,9 @@
 {
-  "id": "./master-admin.html",
+  "id": "./",
   "name": "ZaikaBox Super Admin",
   "short_name": "ZaikaBox Admin",
   "description": "ZaikaBox Platform Super Admin Control Center",
-  "start_url": "./master-admin.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
