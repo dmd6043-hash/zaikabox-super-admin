@@ -572,7 +572,7 @@ $("restaurantApplicationsList").onclick=async event=>{
     if(action==="request-correction"){
       const reason=read("correctionReason");
       if(!reason){status("Pehle correction ka reason likhiye.");return;}
-      if(!confirm("Correction Required status save karke applicant ko Partner App mein correction form dikhana hai?"))return;
+      if(!confirm("Correction Required save karke applicant ko email draft aur Partner App correction form dena hai?"))return;
       button.disabled=true;
       button.textContent="SAVING REQUEST...";
       await updateDoc(doc(db,"restaurantApplications",id),{
@@ -580,7 +580,13 @@ $("restaurantApplicationsList").onclick=async event=>{
         correctionRequestedAt:serverTimestamp(),updatedAt:serverTimestamp()
       });
       await loadAll();
-      status("SUCCESS: Correction request save ho gayi. Applicant Partner App mein login karega to correction form dikhega.");
+      if(application.email){
+        const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Namaste "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya ZaikaBox Restaurant Partner App mein login karke correction details/documents sahi karein aur SAVE & RESUBMIT FOR APPROVAL button dabayein.\n\nZaikaBox Team");
+        status("Correction request Firebase mein save ho gayi. Email draft khul raha hai — applicant ko bhejne ke liye email app mein SEND dabayein.");
+        window.location.href=mailto;
+      }else{
+        status("Correction request save ho gayi, lekin applicant ka email record nahi hai. Partner App mein correction reason dikh jayega; email address update karein.");
+      }
       return;
     }
     if(action==="approve"){
