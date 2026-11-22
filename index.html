@@ -501,18 +501,97 @@ function renderRestaurantApplications(){
   const host=$("restaurantApplicationsList");
   if(!host)return;
   if(!restaurantApplications.length){host.innerHTML="<p class='muted'>No restaurant applications found.</p>";return;}
-  host.innerHTML=restaurantApplications.slice().sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0)).map(a=>`
-    <div class="item">
+  host.innerHTML=restaurantApplications.slice().sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0)).map(a=>{
+    const id=safe(a.id);
+    const docNames=a.documents||{};
+    const correction=safe(a.correctionReason||"");
+    return `
+    <div class="item" data-application-id="${id}">
       <h3>${safe(a.restaurantName||"Restaurant application")}</h3>
       <span class="tag">${safe(a.status||"Pending Approval")}</span>
       <p>Owner: <b>${safe(a.ownerName||"—")}</b></p><p>Mobile: ${safe(a.phone||"—")}</p>
       <p>Email: ${safe(a.email||"—")}</p><p>Address: ${safe(a.address||"—")}</p>
       <p>City: ${safe(a.city||"—")}</p><p>Business type: ${safe(a.businessType||"—")}</p>
       <p>Food category: ${safe(a.foodType||"—")}</p><p>FSSAI number: ${safe(a.fssaiNumber||"—")}</p>
-      <p>Documents selected: Masked Aadhaar ${a.documentChecklist?.ownerId?"Yes":"No"} · PAN ${a.documentChecklist?.pan?"Yes":"No"} · FSSAI certificate ${a.documentChecklist?.fssai?"Yes":"No"} · Shop photo ${a.documentChecklist?.shopPhoto?"Yes":"No"}</p>
-      <p class="muted">Documents are not stored/displayed here. Verify WhatsApp attachments separately. Application ID: ${safe(a.id)}</p>
-    </div>`).join("");
+      <p>Documents listed: Aadhaar ${safe(docNames.ownerId||"—")} · PAN ${safe(docNames.pan||"—")} · FSSAI ${safe(docNames.fssai||"—")} · Address proof ${safe(docNames.addressProof||"—")} · Shop photo ${safe(docNames.shopPhoto||"—")}</p>
+      ${correction?`<p><b>Last correction reason:</b> ${correction}</p>`:""}
+      <p class="muted">Files are not stored in Firebase; verify WhatsApp attachments separately. Application ID: ${id}</p>
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;color:#ffb16f;font-weight:bold">✎ EDIT APPLICATION DETAILS</summary>
+        <div style="padding-top:10px">
+          <label>Owner name</label><input data-field="ownerName" value="${safe(a.ownerName||"")}" maxlength="100">
+          <label>Mobile</label><input data-field="phone" value="${safe(a.phone||"")}" maxlength="15">
+          <label>Restaurant name</label><input data-field="restaurantName" value="${safe(a.restaurantName||"")}" maxlength="100">
+          <label>Address</label><textarea data-field="address" maxlength="500">${safe(a.address||"")}</textarea>
+          <label>City</label><input data-field="city" value="${safe(a.city||"")}" maxlength="80">
+          <label>Business type</label><input data-field="businessType" value="${safe(a.businessType||"")}" maxlength="80">
+          <label>Food category</label><select data-field="foodType">
+            <option ${a.foodType==="Pure Veg"?"selected":""}>Pure Veg</option>
+            <option ${a.foodType==="Non-Veg"?"selected":""}>Non-Veg</option>
+            <option ${a.foodType==="Both Veg & Non-Veg"?"selected":""}>Both Veg & Non-Veg</option>
+          </select>
+          <label>FSSAI number</label><input data-field="fssaiNumber" value="${safe(a.fssaiNumber||"")}" maxlength="30">
+          <button class="primary" type="button" data-action="save-edit">SAVE ADMIN EDIT</button>
+        </div>
+      </details>
+      <div style="margin-top:12px">
+        <label>Correction reason for applicant</label>
+        <textarea data-field="correctionReason" maxlength="1000" placeholder="Example: FSSAI certificate clear nahi hai. Kripya clear photo upload karein.">${correction}</textarea>
+        <button class="secondary" type="button" data-action="email">OPEN EMAIL WITH REASON</button>
+        <button class="primary" type="button" data-action="request-correction">REQUEST CORRECTION</button>
+      </div>
+    </div>`;
+  }).join("");
 }
+host.onclick=async event=>{
+  const button=event.target.closest("button[data-action]");
+  if(!button)return;
+  const card=button.closest("[data-application-id]");
+  const id=card?.dataset.applicationId;
+  const application=restaurantApplications.find(item=>item.id===id);
+  if(!application)return;
+  const read=field=>card.querySelector('[data-field="'+field+'"]')?.value?.trim()||"";
+  const action=button.dataset.action;
+  try{
+    if(action==="email"||action==="request-correction"){
+      const reason=read("correctionReason");
+      if(!reason){status("Pehle correction ka reason likhiye.");return;}
+      if(!application.email){status("Applicant email record mein nahi hai.");return;}
+      const mailto="mailto:"+encodeURIComponent(application.email)
+        +"?subject="+encodeURIComponent("ZaikaBox registration correction required")
+        +"&body="+encodeURIComponent("Namaste "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya Partner App mein login karke Edit Registration karein aur dobara submit karein.\n\nZaikaBox Team");
+      if(action==="request-correction"){
+        button.disabled=true;
+        await updateDoc(doc(db,"restaurantApplications",id),{
+          status:"Correction Required",correctionReason:reason,
+          correctionRequestedAt:serverTimestamp(),updatedAt:serverTimestamp()
+        });
+        await loadAll();
+        status("Correction status save ho gaya. Email compose window khol rahe hain; Send aapko dabana hoga.");
+      }
+      window.location.href=mailto;
+    }
+    if(action==="save-edit"){
+      const ownerName=read("ownerName"),phone=read("phone"),restaurantName=read("restaurantName"),
+        address=read("address"),city=read("city"),businessType=read("businessType"),
+        foodType=read("foodType"),fssaiNumber=read("fssaiNumber");
+      if(!ownerName||!phone||!restaurantName||!address||!city||!businessType||!foodType){
+        status("Required details complete bhariye.");return;
+      }
+      button.disabled=true;
+      await updateDoc(doc(db,"restaurantApplications",id),{
+        ownerName,phone,restaurantName,address,city,businessType,foodType,
+        fssaiNumber,fssaiProvided:fssaiNumber.length>0,updatedAt:serverTimestamp()
+      });
+      await loadAll();
+      status("Application details admin side se update ho gayi.");
+    }
+  }catch(error){
+    console.error(error);
+    status("Application update error: "+(error.code||"")+" "+error.message);
+    button.disabled=false;
+  }
+};
 
 function renderRestaurants(){
   const counts={pending:0,approved:0,rejected:0,suspended:0};
