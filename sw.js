@@ -1,5 +1,5 @@
 
-const CACHE_NAME = "zaikabox-master-admin-v15";
+const CACHE_NAME = "zaikabox-master-admin-v16";
 
 const FILES_TO_CACHE = [
   "./",
