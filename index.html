@@ -238,6 +238,11 @@ button:disabled{opacity:.5}
           <button class="primary" id="addRestaurantBtn">ADD RESTAURANT</button>
         </div>
       </details>
+      <div class="item" style="margin-top:16px">
+        <h3>Restaurant Applications</h3>
+        <p class="muted">Applicant details only. Documents/photos WhatsApp par milenge; yahan store nahi honge.</p>
+        <div id="restaurantApplicationsList">Loading applications...</div>
+      </div>
       <div style="margin-top:16px">
         <input id="restaurantSearch" type="search" placeholder="Search restaurant name, city or ID">
         <select id="restaurantStatusFilter" aria-label="Filter restaurants by approval status">
@@ -321,6 +326,7 @@ const ADMIN_UID="RjDxrTXlLAgNfns668SgUWxBjBv1";
 const $=id=>document.getElementById(id);
 
 let restaurantData=[];
+let restaurantApplications=[];
 let deliveryData=[];
 let orderData=[];
 let customerData=[];
@@ -404,8 +410,9 @@ async function loadAll(){
   status("Firebase se data load ho raha hai...");
 
   try{
-    const [restaurants,accounts,users,orders,paymentSettings]=await Promise.all([
+    const [restaurants,applications,accounts,users,orders,paymentSettings]=await Promise.all([
       getDocs(collection(db,"restaurants")),
+      getDocs(collection(db,"restaurantApplications")),
       getDocs(collection(db,"accounts")),
       getDocs(collection(db,"users")),
       getDocs(collection(db,"orders")),
@@ -413,6 +420,7 @@ async function loadAll(){
     ]);
 
     restaurantData=restaurants.docs.map(d=>({id:d.id,...d.data()}));
+    restaurantApplications=applications.docs.map(d=>({id:d.id,...d.data()}));
 
     const accountUsers=accounts.docs.map(d=>({id:d.id,...d.data()}));
     const regularUsers=users.docs.map(d=>({id:d.id,...d.data()}));
@@ -483,9 +491,27 @@ function renderAll(){
   `;
 
   renderRestaurants();
+  renderRestaurantApplications();
   renderDelivery();
   renderOrders();
   renderCustomers();
+}
+
+function renderRestaurantApplications(){
+  const host=$("restaurantApplicationsList");
+  if(!host)return;
+  if(!restaurantApplications.length){host.innerHTML="<p class='muted'>No restaurant applications found.</p>";return;}
+  host.innerHTML=restaurantApplications.slice().sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0)).map(a=>`
+    <div class="item">
+      <h3>${safe(a.restaurantName||"Restaurant application")}</h3>
+      <span class="tag">${safe(a.status||"Pending Approval")}</span>
+      <p>Owner: <b>${safe(a.ownerName||"—")}</b></p><p>Mobile: ${safe(a.phone||"—")}</p>
+      <p>Email: ${safe(a.email||"—")}</p><p>Address: ${safe(a.address||"—")}</p>
+      <p>City: ${safe(a.city||"—")}</p><p>Business type: ${safe(a.businessType||"—")}</p>
+      <p>Food category: ${safe(a.foodType||"—")}</p><p>FSSAI number: ${safe(a.fssaiNumber||"—")}</p>
+      <p>Documents selected: Masked Aadhaar ${a.documentChecklist?.ownerId?"Yes":"No"} · PAN ${a.documentChecklist?.pan?"Yes":"No"} · FSSAI certificate ${a.documentChecklist?.fssai?"Yes":"No"} · Shop photo ${a.documentChecklist?.shopPhoto?"Yes":"No"}</p>
+      <p class="muted">Documents are not stored/displayed here. Verify WhatsApp attachments separately. Application ID: ${safe(a.id)}</p>
+    </div>`).join("");
 }
 
 function renderRestaurants(){
