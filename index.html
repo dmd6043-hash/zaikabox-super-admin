@@ -558,28 +558,29 @@ $("restaurantApplicationsList").onclick=async event=>{
   if(!application)return;
   const read=field=>card.querySelector('[data-field="'+field+'"]')?.value?.trim()||"";
   const action=button.dataset.appAction;
-  let mailWindow=null;
+  
   try{
-    if(action==="email"||action==="request-correction"){
+    if(action==="email"){
       const reason=read("correctionReason");
       if(!reason){status("Pehle correction ka reason likhiye.");return;}
-      if(!application.email){status("Applicant email record mein nahi hai. Application mein email verify karein.");return;}
+      if(!application.email){status("Applicant email record mein nahi hai. Email draft nahi khul sakta; correction request alag se save kar sakte hain.");return;}
       const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Namaste "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya Partner App mein login karke Edit Registration karein aur dobara submit karein.\n\nZaikaBox Team");
-      if(action==="email"){
-        window.location.href=mailto;
-        status("Email app open karne ki request bheji gayi. Agar app na khule to phone mein email app configured karein.");
-        return;
-      }
-      mailWindow=window.open("about:blank","_blank");
+      window.location.href=mailto;
+      status("Email draft kholne ki request bheji gayi. Email app mein Send aapko manually dabana hoga.");
+      return;
+    }
+    if(action==="request-correction"){
+      const reason=read("correctionReason");
+      if(!reason){status("Pehle correction ka reason likhiye.");return;}
+      if(!confirm("Correction Required status save karke applicant ko Partner App mein correction form dikhana hai?"))return;
       button.disabled=true;
+      button.textContent="SAVING REQUEST...";
       await updateDoc(doc(db,"restaurantApplications",id),{
         status:"Correction Required",correctionReason:reason,
         correctionRequestedAt:serverTimestamp(),updatedAt:serverTimestamp()
       });
-      if(mailWindow&&!mailWindow.closed)mailWindow.location.href=mailto;
-      else window.location.href=mailto;
       await loadAll();
-      status("Correction Required save ho gaya. Email draft khulega; Send manually dabana hoga.");
+      status("SUCCESS: Correction request save ho gayi. Applicant Partner App mein login karega to correction form dikhega.");
       return;
     }
     if(action==="approve"){
