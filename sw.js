@@ -1,11 +1,11 @@
 
-const CACHE_NAME = "zaikabox-master-admin-v18";
+const CACHE_NAME = "zaikabox-master-admin-v19";
 
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
   "./master-admin.html",
-  "./manifest.webmanifest?v=18",
+  "./manifest.webmanifest?v=19",
   "./icon-192.png",
   "./icon-512.png"
 ];
