@@ -218,7 +218,7 @@ button:disabled{opacity:.5}
       <div class="grid">
         <div class="stat"><strong id="pendingRestaurantCount">0</strong><span>Pending Review</span></div>
         <div class="stat"><strong id="approvedRestaurantCount">0</strong><span>Approved</span></div>
-        <div class="stat"><strong id="rejectedRestaurantCount">0</strong><span>Rejected</span></div>
+        <div class="stat"><strong id="rejectedRestaurantCount">0</strong><span>Rejected (incl. applications)</span></div>
         <div class="stat"><strong id="suspendedRestaurantCount">0</strong><span>Suspended</span></div>
       </div>
       <p class="muted">Add, edit, activate/deactivate restaurants. Existing restaurant IDs and menu data remain unchanged.</p>
@@ -503,8 +503,9 @@ function renderRestaurantApplications(){
   if(!host)return;
   if(!restaurantApplications.length){host.innerHTML="<p class='muted'>No restaurant applications found.</p>";return;}
   host.innerHTML=restaurantApplications.slice().sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0)).map(a=>{
-    const id=safe(a.id), docs=a.documents||{}, correction=safe(a.correctionReason||"");
-    const approved=String(a.status||"").toLowerCase()==="approved";
+    const id=safe(a.id), docs=a.documents||{}, correction=safe(a.correctionReason||""), rejection=safe(a.rejectionReason||a.rejectReason||a.reason||"");
+    const appStatus=String(a.status||"").toLowerCase();
+    const approved=appStatus==="approved";
     const canApprove=String(a.status||"").toLowerCase()!=="approved" && a.fssaiProvided===true && !!String(a.fssaiNumber||"").trim() && !!String(docs.fssai||"").trim();
     return `
     <div class="item" data-application-id="${id}">
@@ -516,6 +517,7 @@ function renderRestaurantApplications(){
       <p>Food category: ${safe(a.foodType||"—")}</p><p>FSSAI number: ${safe(a.fssaiNumber||"—")}</p>
       <p>Documents listed: Aadhaar ${safe(docs.ownerId||"—")} · PAN ${safe(docs.pan||"—")} · FSSAI ${safe(docs.fssai||"—")} · Address proof ${safe(docs.addressProof||"—")} · Shop photo ${safe(docs.shopPhoto||"—")}</p>
       ${correction?`<p><b>Last correction reason:</b> ${correction}</p>`:""}
+      ${rejection?`<p style="color:#ff8b9e"><b>Rejection reason:</b> ${rejection}</p>`:""}
       <p class="muted">Documents ke original files WhatsApp par manually verify karein. Application ID: ${id}</p>
       ${approved?`<p class="tag">Approved · Restaurant ID: ${safe(a.restaurantId||"Created")}</p>`:`
       <div style="margin:12px 0">
@@ -541,6 +543,11 @@ function renderRestaurantApplications(){
         </div>
       </details>
       <div style="margin-top:12px">
+        <label>Rejection reason for applicant</label>
+        <textarea data-field="rejectionReason" maxlength="1000" placeholder="Example: Required FSSAI details/document verification complete nahi hui.">${rejection}</textarea>
+        <button class="danger" type="button" data-app-action="reject">REJECT APPLICATION &amp; SAVE REASON</button>
+      </div>
+      <div style="margin-top:12px">
         <label>Correction reason for applicant</label>
         <textarea data-field="correctionReason" maxlength="1000" placeholder="Example: FSSAI certificate clear nahi hai. Kripya clear photo upload karein.">${correction}</textarea>
         <button class="secondary" type="button" data-app-action="email">OPEN EMAIL WITH REASON</button>
@@ -560,6 +567,20 @@ $("restaurantApplicationsList").onclick=async event=>{
   const action=button.dataset.appAction;
   
   try{
+    if(action==="reject"){
+      const reason=read("rejectionReason");
+      if(!reason){status("Rejection reason likhna zaroori hai.");return;}
+      if(String(application.status||"").toLowerCase()==="approved"){status("Approved application ko yahan reject nahi kar sakte. Pehle Super Admin se review karwayein.");return;}
+      if(!confirm((application.restaurantName||"Restaurant")+" ki application reject karke reason save karna hai? Restaurant/partner account create nahi hoga."))return;
+      button.disabled=true;button.textContent="SAVING REJECTION...";
+      await updateDoc(doc(db,"restaurantApplications",id),{
+        status:"Rejected",rejectionReason:reason,rejectedAt:serverTimestamp(),
+        rejectedBy:auth.currentUser?.uid||"",updatedAt:serverTimestamp()
+      });
+      await loadAll();
+      status("Application rejected. Reason Firebase mein save ho gaya; Partner App mein popup par dikhega.");
+      return;
+    }
     if(action==="email"){
       const reason=read("correctionReason");
       if(!reason){status("Pehle correction ka reason likhiye.");return;}
@@ -661,7 +682,8 @@ function renderRestaurants(){
   });
   $("pendingRestaurantCount").textContent=counts.pending;
   $("approvedRestaurantCount").textContent=counts.approved;
-  $("rejectedRestaurantCount").textContent=counts.rejected;
+  const rejectedApplications=restaurantApplications.filter(a=>["rejected","application rejected"].includes(String(a.status||"").toLowerCase())).length;
+  $("rejectedRestaurantCount").textContent=counts.rejected+rejectedApplications;
   $("suspendedRestaurantCount").textContent=counts.suspended;
   if(!restaurantData.length){
     $("restaurantList").innerHTML="<div class='item'>No restaurants found yet.</div>";
