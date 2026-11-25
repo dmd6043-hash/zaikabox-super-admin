@@ -240,7 +240,7 @@ button:disabled{opacity:.5}
       </details>
       <div class="item" style="margin-top:16px">
         <h3>Restaurant Applications</h3>
-        <p class="muted">Applicant details only. Documents/photos WhatsApp par milenge; yahan store nahi honge.</p>
+        <p class="muted">Applicant details only. Documents and photos will be shared through WhatsApp; they will not be stored here.</p>
         <div id="restaurantApplicationsList">Loading applications...</div>
       </div>
       <div style="margin-top:16px">
@@ -270,7 +270,7 @@ button:disabled{opacity:.5}
   <section id="ordersTab" class="tab hidden">
     <div class="card">
       <h2>Payments &amp; Settlements</h2>
-      <p class="muted">Customer UTR ko apne UPI/bank app mein verify karne ke baad hi Paid mark karein.</p>
+      <p class="muted">Verify the customer's UTR in your UPI or banking app before marking the payment as Paid.</p>
       <label for="platformUpiId">ZaikaBox UPI ID</label>
       <input id="platformUpiId" type="text" placeholder="example@upi" value="8269568200-3@ybl">
       <button class="primary" id="savePaymentSettings">SAVE UPI SETTINGS</button>
@@ -364,7 +364,7 @@ $("loginBtn").onclick=async()=>{
   const password=$("password").value;
 
   if(!email||!password){
-    status("Email aur password bhariye.");
+    status("Enter your email and password.");
     return;
   }
 
@@ -394,7 +394,7 @@ onAuthStateChanged(auth,async user=>{
   }
 
   if(user.uid!==ADMIN_UID){
-    status("Access denied: Super Admin UID match nahi hui.");
+    status("Access denied: Super Admin UID does not match.");
     await signOut(auth);
     return;
   }
@@ -408,7 +408,7 @@ onAuthStateChanged(auth,async user=>{
 async function loadAll(){
   if(loading)return;
   loading=true;
-  status("Firebase se data load ho raha hai...");
+  status("Loading data from Firebase...");
 
   try{
     const [restaurants,applications,accounts,users,orders,paymentSettings]=await Promise.all([
@@ -518,11 +518,11 @@ function renderRestaurantApplications(){
       <p>Documents listed: Aadhaar ${safe(docs.ownerId||"—")} · PAN ${safe(docs.pan||"—")} · FSSAI ${safe(docs.fssai||"—")} · Address proof ${safe(docs.addressProof||"—")} · Shop photo ${safe(docs.shopPhoto||"—")}</p>
       ${correction?`<p><b>Last correction reason:</b> ${correction}</p>`:""}
       ${rejection?`<p style="color:#ff8b9e"><b>Rejection reason:</b> ${rejection}</p>`:""}
-      <p class="muted">Documents ke original files WhatsApp par manually verify karein. Application ID: ${id}</p>
+      <p class="muted">Manually verify the original documents shared through WhatsApp. Application ID: ${id}</p>
       ${approved?`<p class="tag">Approved · Restaurant ID: ${safe(a.restaurantId||"Created")}</p>`:`
       <div style="margin:12px 0">
         <button class="primary" type="button" data-app-action="approve" ${canApprove?"":"disabled"}>APPROVE & CREATE PARTNER ACCOUNT</button>
-        ${canApprove?"":'<p class="muted">Approval ke liye FSSAI number aur certificate filename application mein hona zaroori hai. Original certificate verify karein.</p>'}
+        ${canApprove?"":'<p class="muted">An FSSAI number and certificate filename must be included in the application for approval. Verify the original certificate.</p>'}
       </div>`}
       <details style="margin-top:12px">
         <summary style="cursor:pointer;color:#ffb16f;font-weight:bold">✎ EDIT APPLICATION DETAILS</summary>
@@ -544,12 +544,12 @@ function renderRestaurantApplications(){
       </details>
       <div style="margin-top:12px">
         <label>Rejection reason for applicant</label>
-        <textarea data-field="rejectionReason" maxlength="1000" placeholder="Example: Required FSSAI details/document verification complete nahi hui.">${rejection}</textarea>
+        <textarea data-field="rejectionReason" maxlength="1000" placeholder="Example: Required FSSAI details or document verification is incomplete.">${rejection}</textarea>
         <button class="danger" type="button" data-app-action="reject">REJECT APPLICATION &amp; SAVE REASON</button>
       </div>
       <div style="margin-top:12px">
         <label>Correction reason for applicant</label>
-        <textarea data-field="correctionReason" maxlength="1000" placeholder="Example: FSSAI certificate clear nahi hai. Kripya clear photo upload karein.">${correction}</textarea>
+        <textarea data-field="correctionReason" maxlength="1000" placeholder="Example: The FSSAI certificate is unclear. Please upload a clear photo.">${correction}</textarea>
         <button class="secondary" type="button" data-app-action="email">OPEN EMAIL WITH REASON</button>
         <button class="primary" type="button" data-app-action="request-correction">REQUEST CORRECTION</button>
       </div>
@@ -570,7 +570,7 @@ $("restaurantApplicationsList").onclick=async event=>{
     if(action==="reject"){
       const reason=read("rejectionReason");
       if(!reason){status("Rejection reason likhna zaroori hai.");return;}
-      if(String(application.status||"").toLowerCase()==="approved"){status("Approved application ko yahan reject nahi kar sakte. Pehle Super Admin se review karwayein.");return;}
+      if(String(application.status||"").toLowerCase()==="approved"){status("An approved application cannot be rejected here. Please request a Super Admin review first.");return;}
       if(!confirm((application.restaurantName||"Restaurant")+" ki application reject karke reason save karna hai? Restaurant/partner account create nahi hoga."))return;
       button.disabled=true;button.textContent="SAVING REJECTION...";
       await updateDoc(doc(db,"restaurantApplications",id),{
@@ -578,22 +578,22 @@ $("restaurantApplicationsList").onclick=async event=>{
         rejectedBy:auth.currentUser?.uid||"",updatedAt:serverTimestamp()
       });
       await loadAll();
-      status("Application rejected. Reason Firebase mein save ho gaya; Partner App mein popup par dikhega.");
+      status("Application rejected. The reason has been saved in Firebase and will appear in the Partner App.");
       return;
     }
     if(action==="email"){
       const reason=read("correctionReason");
-      if(!reason){status("Pehle correction ka reason likhiye.");return;}
-      if(!application.email){status("Applicant email record mein nahi hai. Email draft nahi khul sakta; correction request alag se save kar sakte hain.");return;}
-      const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Namaste "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya Partner App mein login karke Edit Registration karein aur dobara submit karein.\n\nZaikaBox Team");
+      if(!reason){status("Enter the reason for correction first.");return;}
+      if(!application.email){status("The applicant's email is not on record. An email draft cannot be opened, but you can save the correction request separately.");return;}
+      const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Hello "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya Partner App mein login karke Edit Registration karein aur dobara submit karein.\n\nZaikaBox Team");
       window.location.href=mailto;
-      status("Email draft kholne ki request bheji gayi. Email app mein Send aapko manually dabana hoga.");
+      status("The email draft has been opened. You must select Send manually in your email app.");
       return;
     }
     if(action==="request-correction"){
       const reason=read("correctionReason");
-      if(!reason){status("Pehle correction ka reason likhiye.");return;}
-      if(!confirm("Correction Required save karke applicant ko email draft aur Partner App correction form dena hai?"))return;
+      if(!reason){status("Enter the reason for correction first.");return;}
+      if(!confirm("Save the correction request and provide the applicant with an email draft and a correction form in the Partner App?"))return;
       button.disabled=true;
       button.textContent="SAVING REQUEST...";
       await updateDoc(doc(db,"restaurantApplications",id),{
@@ -602,19 +602,19 @@ $("restaurantApplicationsList").onclick=async event=>{
       });
       await loadAll();
       if(application.email){
-        const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Namaste "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya ZaikaBox Restaurant Partner App mein login karke correction details/documents sahi karein aur SAVE & RESUBMIT FOR APPROVAL button dabayein.\n\nZaikaBox Team");
-        status("Correction request Firebase mein save ho gayi. Email draft khul raha hai — applicant ko bhejne ke liye email app mein SEND dabayein.");
+        const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Hello "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya ZaikaBox Restaurant Partner App mein login karke correction details/documents sahi karein aur SAVE & RESUBMIT FOR APPROVAL button dabayein.\n\nZaikaBox Team");
+        status("The correction request has been saved in Firebase. An email draft is opening. Select SEND in your email app to send it to the applicant.");
         window.location.href=mailto;
       }else{
-        status("Correction request save ho gayi, lekin applicant ka email record nahi hai. Partner App mein correction reason dikh jayega; email address update karein.");
+        status("The correction request has been saved, but the applicant's email is not on record. The reason will appear in the Partner App; please update the email address.");
       }
       return;
     }
     if(action==="approve"){
       if(!application.fssaiProvided||!String(application.fssaiNumber||"").trim()||!String(application.documents?.fssai||"").trim()){
-        status("FSSAI number aur certificate details verify hone ke baad hi approve karein.");return;
+        status("Approve only after verifying the FSSAI number and certificate details.");return;
       }
-      if(String(application.status||"").toLowerCase()==="approved"){status("Application pehle se approved hai.");return;}
+      if(String(application.status||"").toLowerCase()==="approved"){status("This application has already been approved.");return;}
       if(!confirm((application.restaurantName||"Restaurant")+" ko approve karke partner account banana hai? Original documents pehle verify karein."))return;
       button.disabled=true;button.textContent="APPROVING...";
       const restaurantId="zb-"+id.slice(0,12);
@@ -622,7 +622,7 @@ $("restaurantApplicationsList").onclick=async event=>{
       const accountRef=doc(db,"accounts",id);
       const [existingRestaurant,existingAccount]=await Promise.all([getDoc(restaurantRef),getDoc(accountRef)]);
       if(existingRestaurant.exists()||existingAccount.exists()){
-        throw new Error("Restaurant ID ya partner account pehle se maujood hai. Duplicate creation rok di gayi; Super Admin se records check karein.");
+        throw new Error("The Restaurant ID or partner account already exists. Duplicate creation was prevented. Please check the records in Super Admin.");
       }
       const foodCategory=application.foodType==="Pure Veg"?"Veg Only":application.foodType==="Non-Veg"?"Non-Veg Only":"Veg + Non-Veg";
       const batch=writeBatch(db);
@@ -654,7 +654,7 @@ $("restaurantApplicationsList").onclick=async event=>{
         address=read("address"),city=read("city"),businessType=read("businessType"),
         foodType=read("foodType"),fssaiNumber=read("fssaiNumber");
       if(!ownerName||!phone||!restaurantName||!address||!city||!businessType||!foodType){
-        status("Required details complete bhariye.");return;
+        status("Please complete all required details.");return;
       }
       button.disabled=true;
       await updateDoc(doc(db,"restaurantApplications",id),{
@@ -662,7 +662,7 @@ $("restaurantApplicationsList").onclick=async event=>{
         fssaiNumber,fssaiProvided:fssaiNumber.length>0,updatedAt:serverTimestamp()
       });
       await loadAll();
-      status("Application details admin side se update ho gayi.");
+      status("Application details have been updated by the administrator.");
     }
   }catch(error){
     console.error("APPLICATION ACTION ERROR",error);
@@ -705,7 +705,7 @@ function renderRestaurants(){
   });
   $("restaurantResultSummary").textContent="Showing "+filtered.length+" of "+restaurantData.length+" restaurant(s).";
   if(!filtered.length){
-    $("restaurantList").innerHTML="<div class='item'>No matching restaurants found. Search ya status filter badal kar dekhein.</div>";
+    $("restaurantList").innerHTML="<div class='item'>No matching restaurants found. Try changing the search term or status filter.</div>";
     return;
   }
   $("restaurantList").innerHTML=filtered.map(r=>{
@@ -790,7 +790,7 @@ $("restaurantList").addEventListener("click",async event=>{
     }catch(error){
       console.error("RESTAURANT APPROVAL ERROR",error);
       status("UPDATE ERROR: "+(error.code||"")+" "+error.message);
-      alert("Restaurant status update nahi hua: "+error.message);
+      alert("Could not update restaurant status: "+error.message);
     }finally{
       actionButton.disabled=false;
     }
@@ -803,7 +803,7 @@ $("restaurantList").addEventListener("click",async event=>{
   const name=card.querySelector("[data-r-name]").value.trim();
   const city=card.querySelector("[data-r-city]").value.trim();
   const description=card.querySelector("[data-r-description]").value.trim();
-  if(!name||!city){status("Restaurant name aur city dono zaroori hain.");return;}
+  if(!name||!city){status("Both restaurant name and city are required.");return;}
   if(!confirm(name+" ki details save karni hain?"))return;
   button.disabled=true;button.textContent="SAVING...";
   try{
@@ -818,7 +818,7 @@ $("restaurantList").addEventListener("click",async event=>{
     await loadAll();
   }catch(error){
     console.error(error);status("SAVE ERROR: "+(error.code||"")+" "+error.message);
-    alert("Changes save nahi hue: "+error.message);
+    alert("Could not save changes: "+error.message);
   }finally{button.disabled=false;button.textContent="SAVE CHANGES";}
 });
 
@@ -828,9 +828,9 @@ $("addRestaurantBtn").onclick=async()=>{
   const description=$("newRestaurantDescription").value.trim();
   const foodCategory=$("newRestaurantCategory").value;
   const active=$("newRestaurantActive").checked;
-  if(!name||!city){status("Naya restaurant add karne ke liye name aur city bhariye.");return;}
+  if(!name||!city){status("Enter a name and city to add a new restaurant.");return;}
   let id=name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,45);
-  if(!id){status("Restaurant ID generate nahi ho payi. Naam badal kar try karein.");return;}
+  if(!id){status("Could not generate a Restaurant ID. Try changing the name.");return;}
   const base=id;let suffix=2;
   try{
     while((await getDoc(doc(db,"restaurants",id))).exists()){
@@ -895,7 +895,7 @@ $("deliveryList").addEventListener("click",async event=>{
   const nextActive=button.dataset.nextActive==="true";
   const partner=deliveryData.find(p=>p.id===uid && p.accountExists);
   if(!partner){
-    status("Delivery account record nahi mila. Koi change nahi kiya.");
+    status("Delivery account record not found. No changes were made.");
     return;
   }
   const label=partner.name||partner.displayName||partner.email||uid;
@@ -906,7 +906,7 @@ $("deliveryList").addEventListener("click",async event=>{
 
   button.disabled=true;
   button.textContent=nextActive?"ACTIVATING...":"SUSPENDING...";
-  status("Delivery partner status update ho raha hai...");
+  status("Updating delivery partner status...");
   try{
     await updateDoc(doc(db,"accounts",uid),{
       active:nextActive,
@@ -917,7 +917,7 @@ $("deliveryList").addEventListener("click",async event=>{
   }catch(error){
     console.error("DELIVERY PARTNER STATUS ERROR",error);
     status("UPDATE ERROR: "+(error.code||"")+" "+error.message);
-    alert("Status update nahi hua: "+error.message);
+    alert("Could not update status: "+error.message);
   }finally{
     button.disabled=false;
   }
@@ -1043,7 +1043,7 @@ function renderOrders(){
         "<p style=\"word-break:break-all\">UTR / Transaction ID: <b>"+safe(o.utr||"Not submitted")+"</b></p>"+
         "<button class=\"primary\" data-payment-action=\"paid\" data-payment-order=\""+safe(o.id)+"\">VERIFY &amp; MARK PAID</button>"+
         "<button class=\"danger\" data-payment-action=\"failed\" data-payment-order=\""+safe(o.id)+"\">MARK FAILED</button>"+
-        "<p class=\"muted\">Paid tabhi karein jab bank/UPI app mein actual credit confirm ho.</p>"+
+        "<p class=\"muted\">Mark as Paid only after confirming the actual credit in your bank or UPI app.</p>"+
         "</div>"
       : "<p>Payment status: <b>"+safe(paymentStatus)+"</b></p>"+
         (o.utr?"<p>UTR: "+safe(o.utr)+"</p>":"");
@@ -1126,7 +1126,7 @@ $("orderList").addEventListener("click",async event=>{
 $("savePaymentSettings").addEventListener("click",async()=>{
   const upiId=$("platformUpiId").value.trim();
   if(!/^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$/.test(upiId)){
-    status("Valid UPI ID enter kijiye, jaise name@bank.");
+    status("Enter a valid UPI ID, such as name@bank.");
     $("platformUpiId").focus();
     return;
   }
@@ -1146,7 +1146,7 @@ $("savePaymentSettings").addEventListener("click",async()=>{
   }catch(error){
     console.error("PAYMENT SETTINGS ERROR",error);
     status("SETTINGS ERROR: "+(error.code||"")+" "+error.message);
-    alert("UPI settings save nahi hui: "+error.message);
+    alert("Could not save UPI settings: "+error.message);
   }finally{
     button.disabled=false;
     button.textContent="SAVE UPI SETTINGS";
@@ -1181,7 +1181,7 @@ $("orderList").addEventListener("click",async event=>{
   }catch(error){
     console.error("ORDER STATUS UPDATE ERROR",error);
     status("UPDATE ERROR: "+(error.code||"")+" "+error.message);
-    alert("Status update nahi hua: "+error.message);
+    alert("Could not update status: "+error.message);
   }finally{
     button.disabled=false;
     button.textContent="SAVE STATUS";
@@ -1195,19 +1195,19 @@ $("orderList").addEventListener("click",async event=>{
   const select=$("orderList").querySelector("select[data-assignee-order=\""+orderId+"\"]");
   const uid=select?.value;
   if(!uid){
-    status("Active delivery partner select kijiye.");
+    status("Select an active delivery partner.");
     return;
   }
   const partner=deliveryData.find(p=>p.id===uid && p.active===true && String(p.role||"").trim().toLowerCase()==="delivery");
   const order=orderData.find(item=>item.id===orderId);
   if(!partner||!order){
-    status("Selected delivery partner ya order nahi mila. Refresh kijiye.");
+    status("The selected delivery partner or order was not found. Please refresh.");
     return;
   }
   if(!confirm("Order #"+orderId.slice(-8)+" ko "+(partner.name||partner.displayName||partner.email||uid)+" assign karna hai?"))return;
   button.disabled=true;
   button.textContent="ASSIGNING...";
-  status("Delivery partner assign ho raha hai...");
+  status("Assigning delivery partner...");
   try{
     await updateDoc(doc(db,"orders",orderId),{
       assignedTo:uid,
@@ -1219,7 +1219,7 @@ $("orderList").addEventListener("click",async event=>{
   }catch(error){
     console.error("DELIVERY ASSIGNMENT ERROR",error);
     status("ASSIGNMENT ERROR: "+(error.code||"")+" "+error.message);
-    alert("Assignment save nahi hua: "+error.message);
+    alert("Could not save the assignment: "+error.message);
   }finally{
     button.disabled=false;
     button.textContent="SAVE ASSIGNMENT";
