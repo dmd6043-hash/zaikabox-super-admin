@@ -569,7 +569,7 @@ $("restaurantApplicationsList").onclick=async event=>{
   try{
     if(action==="reject"){
       const reason=read("rejectionReason");
-      if(!reason){status("Rejection reason likhna zaroori hai.");return;}
+      if(!reason){status("A rejection reason is required.");return;}
       if(String(application.status||"").toLowerCase()==="approved"){status("An approved application cannot be rejected here. Please request a Super Admin review first.");return;}
       if(!confirm((application.restaurantName||"Restaurant")+" ki application reject karke reason save karna hai? Restaurant/partner account create nahi hoga."))return;
       button.disabled=true;button.textContent="SAVING REJECTION...";
@@ -585,7 +585,7 @@ $("restaurantApplicationsList").onclick=async event=>{
       const reason=read("correctionReason");
       if(!reason){status("Enter the reason for correction first.");return;}
       if(!application.email){status("The applicant's email is not on record. An email draft cannot be opened, but you can save the correction request separately.");return;}
-      const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Hello "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya Partner App mein login karke Edit Registration karein aur dobara submit karein.\n\nZaikaBox Team");
+      const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Hello "+(application.ownerName||"Applicant")+",\n\nCorrections are required for your restaurant registration:\n\n"+reason+"\n\nPlease log in to the Partner App, select Edit Registration, and submit again.\n\nZaikaBox Team");
       window.location.href=mailto;
       status("The email draft has been opened. You must select Send manually in your email app.");
       return;
@@ -602,7 +602,7 @@ $("restaurantApplicationsList").onclick=async event=>{
       });
       await loadAll();
       if(application.email){
-        const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Hello "+(application.ownerName||"Applicant")+",\n\nAapki restaurant registration mein correction required hai:\n\n"+reason+"\n\nKripya ZaikaBox Restaurant Partner App mein login karke correction details/documents sahi karein aur SAVE & RESUBMIT FOR APPROVAL button dabayein.\n\nZaikaBox Team");
+        const mailto="mailto:"+application.email+"?subject="+encodeURIComponent("ZaikaBox restaurant registration correction required")+"&body="+encodeURIComponent("Hello "+(application.ownerName||"Applicant")+",\n\nCorrections are required for your restaurant registration:\n\n"+reason+"\n\nPlease log in to the ZaikaBox Restaurant Partner App, correct the details or documents, and select SAVE & RESUBMIT FOR APPROVAL.\n\nZaikaBox Team");
         status("The correction request has been saved in Firebase. An email draft is opening. Select SEND in your email app to send it to the applicant.");
         window.location.href=mailto;
       }else{
@@ -645,7 +645,7 @@ $("restaurantApplicationsList").onclick=async event=>{
         status:"Approved",restaurantId,approvedAt:serverTimestamp(),approvedBy:auth.currentUser?.uid||"",updatedAt:serverTimestamp()
       });
       await batch.commit();
-      status("SUCCESS: Application approved. Restaurant ID "+restaurantId+" aur partner account create ho gaya. Payout bank verification ke baad hi activate hoga.");
+      status("SUCCESS: Application approved. Restaurant ID "+restaurantId+" and the partner account have been created. Payouts will be activated only after bank verification.");
       await loadAll();
       return;
     }
@@ -722,7 +722,7 @@ function renderRestaurants(){
         <h3>${safe(name)}</h3>
         <span class="tag">${safe(approvalLabel)} · ${safe(active)}</span>
         <p class="muted">Approval status: <b>${safe(approvalLabel)}</b></p>
-        ${approval==="legacy-inactive" ? '<p class="muted">Legacy inactive restaurant. Purana status preserve hai; ise Pending Review count mein include nahi kiya gaya.</p>' : ''}
+        ${approval==="legacy-inactive" ? '<p class="muted">Legacy inactive restaurant. The previous status has been preserved; this is not included in the Pending Review count.</p>' : ''}
         <div class="restaurant-controls">
           <button class="primary" data-restaurant-action="approve" data-restaurant-id="${safe(r.id)}">APPROVE</button>
           <button class="danger" data-restaurant-action="reject" data-restaurant-id="${safe(r.id)}">REJECT</button>
@@ -770,10 +770,10 @@ $("restaurantList").addEventListener("click",async event=>{
     }[action];
     if(!config)return;
     if(!confirm(name+" ko "+config.label+" karna hai? "+(action==="delete"
-      ?"Restaurant customer app se hide ho jayega. Restaurant profile archive hogi; menu subcollection, orders aur history Firestore mein safe rahenge. Isse REACTIVATE se wapas laa sakte hain."
+      ?"The restaurant will be hidden from the customer app. Its profile will be archived; menu data, orders, and history will remain safe in Firestore. You can restore it using REACTIVATE."
       :config.active
-        ?"Restaurant customer app mein active/visible rahega."
-        :"Restaurant customer app mein inactive/hidden ho jayega. Restaurant aur menu data delete nahi hoga.")))return;
+        ?"The restaurant will remain active and visible in the customer app."
+        :"The restaurant will become inactive and hidden in the customer app. Restaurant and menu data will not be deleted.")))return;
     actionButton.disabled=true;
     actionButton.textContent="UPDATING...";
     try{
@@ -785,7 +785,7 @@ $("restaurantList").addEventListener("click",async event=>{
         reviewedBy:auth.currentUser?.uid||"",
         updatedAt:serverTimestamp()
       });
-      status("SUCCESS: "+name+" — "+(action==="delete"?"archived":config.status)+". Menu, orders aur history safe hain.");
+      status("SUCCESS: "+name+" — "+(action==="delete"?"archived":config.status)+". Menu, orders, and history are safe.");
       await loadAll();
     }catch(error){
       console.error("RESTAURANT APPROVAL ERROR",error);
@@ -804,7 +804,7 @@ $("restaurantList").addEventListener("click",async event=>{
   const city=card.querySelector("[data-r-city]").value.trim();
   const description=card.querySelector("[data-r-description]").value.trim();
   if(!name||!city){status("Both restaurant name and city are required.");return;}
-  if(!confirm(name+" ki details save karni hain?"))return;
+  if(!confirm(name+"'s details will be saved?"))return;
   button.disabled=true;button.textContent="SAVING...";
   try{
     await updateDoc(doc(db,"restaurants",id),{
@@ -851,7 +851,7 @@ $("addRestaurantBtn").onclick=async()=>{
     button.disabled=false;button.textContent="ADD RESTAURANT";
   }catch(error){
     console.error(error);status("ADD ERROR: "+(error.code||"")+" "+error.message);
-    alert("Restaurant add nahi hua: "+error.message);
+    alert("Could not add restaurant: "+error.message);
     $("addRestaurantBtn").disabled=false;$("addRestaurantBtn").textContent="ADD RESTAURANT";
   }
 };
@@ -901,8 +901,8 @@ $("deliveryList").addEventListener("click",async event=>{
   const label=partner.name||partner.displayName||partner.email||uid;
   const action=nextActive?"reactivate":"suspend";
   if(!confirm(label+" ko "+action+" karna hai? "+(nextActive
-    ?"Partner dobara login kar sakega."
-    :"Partner ka login band ho jayega. Existing orders aur account delete nahi honge.")))return;
+    ?"The partner will be able to log in again."
+    :"The partner will no longer be able to log in. Existing orders and the account will not be deleted.")))return;
 
   button.disabled=true;
   button.textContent=nextActive?"ACTIVATING...":"SUSPENDING...";
@@ -1092,8 +1092,8 @@ $("orderList").addEventListener("click",async event=>{
   const action=button.dataset.paymentAction;
   const order=orderData.find(item=>item.id===orderId);
   if(!order||order.paymentStatus!=="Pending")return;
-  if(action==="paid"&&!confirm("UPI/bank app mein UTR "+(order.utr||"")+" se ₹"+Number(order.total||0)+" ka payment credit verify kar liya? Order ko Paid karke restaurant ko bhejna hai?"))return;
-  if(action==="failed"&&!confirm("Is payment ko Failed mark karna hai?"))return;
+  if(action==="paid"&&!confirm("Have you verified the payment credit of ₹"+Number(order.total||0)+" using UTR "+(order.utr||"")+" in your UPI or banking app? Mark this order as Paid and send it to the restaurant?"))return;
+  if(action==="failed"&&!confirm("Do you want to mark this payment as Failed?"))return;
   button.disabled=true;
   button.textContent=action==="paid"?"VERIFYING...":"UPDATING...";
   try{
@@ -1117,7 +1117,7 @@ $("orderList").addEventListener("click",async event=>{
   }catch(error){
     console.error("PAYMENT VERIFICATION ERROR",error);
     status("PAYMENT ERROR: "+(error.code||"")+" "+error.message);
-    alert("Payment status update nahi hua: "+error.message);
+    alert("Could not update payment status: "+error.message);
   }finally{
     button.disabled=false;
   }
@@ -1165,7 +1165,7 @@ $("orderList").addEventListener("click",async event=>{
     status("Order already has this status.");
     return;
   }
-  if(!confirm("Order #"+orderId.slice(-8)+" status \""+newStatus+"\" set karna hai?"))return;
+  if(!confirm("Order #"+orderId.slice(-8)+" status to \""+newStatus+"\"?"))return;
   button.disabled=true;
   button.textContent="UPDATING...";
   status("Updating order status...");
@@ -1204,7 +1204,7 @@ $("orderList").addEventListener("click",async event=>{
     status("The selected delivery partner or order was not found. Please refresh.");
     return;
   }
-  if(!confirm("Order #"+orderId.slice(-8)+" ko "+(partner.name||partner.displayName||partner.email||uid)+" assign karna hai?"))return;
+  if(!confirm("Order #"+orderId.slice(-8)+" to "+(partner.name||partner.displayName||partner.email||uid)+"?"))return;
   button.disabled=true;
   button.textContent="ASSIGNING...";
   status("Assigning delivery partner...");
